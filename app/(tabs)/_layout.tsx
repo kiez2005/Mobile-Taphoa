@@ -1,3 +1,4 @@
+// app/(tabs)/_layout.tsx
 import { Tabs } from 'expo-router';
 import React from 'react';
 
@@ -16,18 +17,40 @@ export default function TabLayout() {
         headerShown: false,
         tabBarButton: HapticTab,
       }}>
+      
+      {/* Tab 1: Tổng quan */}
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
+          title: 'Tổng quan',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
         }}
       />
+
+      {/* Tab 2: Bán hàng */}
       <Tabs.Screen
-        name="explore"
+        name="banhang"
         options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+          title: 'Bán hàng',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="cart.fill" color={color} />,
+        }}
+      />
+
+      {/* Tab 3: Kho hàng */}
+      <Tabs.Screen
+        name="kho"
+        options={{
+          title: 'Kho hàng',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="cube.box.fill" color={color} />,
+        }}
+      />
+
+      {/* Tab 4: Báo cáo */}
+      <Tabs.Screen
+        name="baocao"
+        options={{
+          title: 'Báo cáo',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="chart.bar.fill" color={color} />,
         }}
       />
     </Tabs>
