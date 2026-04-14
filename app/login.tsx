@@ -1,133 +1,128 @@
 import React, { useState } from "react";
 import {
-  View,
-  Text,
-  TextInput,
-  StyleSheet,
-  TouchableOpacity,
-  SafeAreaView,
-  Alert
+  View, Text, TextInput, StyleSheet, TouchableOpacity,
+  SafeAreaView, Alert, Image, Keyboard, TouchableWithoutFeedback
 } from "react-native";
-
 import { useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 
-export default function App() {
+export default function LoginScreen() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const router = useRouter();  
+  const [showPassword, setShowPassword] = useState(false);
+  const router = useRouter();
+
   const handleLogin = async () => {
-    // Validate
-    if (!username) {
-      Alert.alert("Lỗi", "Vui lòng nhập tên đăng nhập");
-      return;
-    }
-    if (!password) {
-      Alert.alert("Lỗi", "Vui lòng nhập mật khẩu");
-      return;
-    }
+    if (!username) { Alert.alert("Lỗi", "Vui lòng nhập tên đăng nhập"); return; }
+    if (!password) { Alert.alert("Lỗi", "Vui lòng nhập mật khẩu"); return; }
 
     try {
-        const response = await fetch("http://170.20.10.4/cuahangtaphoa", {
+      const response = await fetch("http://170.20.10.2/cuahangtaphoa", {
         method: "POST",
-        headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-        },
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: `TenDangNhap=${encodeURIComponent(username)}&MatKhau=${encodeURIComponent(password)}`,
-        });
-
+      });
       const data = await response.json();
-
       if (data.success) {
-        Alert.alert("Thành công", data.message);
-        router.replace("/(tabs)");      
-      } 
-      else {
+        router.replace("/(tabs)");
+      } else {
         Alert.alert("Lỗi", data.message);
       }
-    } catch (error) {
-      console.log(error);
+    } catch {
       Alert.alert("Lỗi", "Không kết nối được server");
     }
   };
 
   return (
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
     <SafeAreaView style={styles.container}>
-      
-      <Text style={styles.logo}>Cửa hàng</Text>
+      <View style={styles.card}>
+        {/* Logo */}
+        <View style={styles.logoBox}>
+          <Ionicons name="bag-handle" size={30} color="#fff" />
+        </View>
 
-      <TextInput
-        placeholder="Tên đăng nhập"
-        style={styles.input}
-        value={username}
-        onChangeText={setUsername}
-      />
+        {/* Username */}
+        <View style={styles.inputWrapper}>
+          <Text style={styles.label}>Tên đăng nhập</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Nhập tên đăng nhập"
+            value={username}
+            onChangeText={setUsername}
+            autoCapitalize="none"
+          />
+        </View>
 
-      <TextInput
-        placeholder="Mật khẩu"
-        style={styles.input}
-        secureTextEntry
-        value={password}
-        onChangeText={setPassword}
-      />
+        {/* Password */}
+        <View style={styles.inputWrapper}>
+          <Text style={styles.label}>Mật khẩu</Text>
+          <View style={styles.passwordRow}>
+            <TextInput
+              style={[styles.input, { flex: 1, marginBottom: 0 }]}
+              placeholder="Mật khẩu"
+              secureTextEntry={!showPassword}
+              value={password}
+              onChangeText={setPassword}
+            />
+            <TouchableOpacity
+              style={styles.eyeBtn}
+              onPress={() => setShowPassword(!showPassword)}
+            >
+              <Ionicons
+                name={showPassword ? "eye-off-outline" : "eye-outline"}
+                size={18} color="#999"
+              />
+            </TouchableOpacity>
+          </View>
+        </View>
 
-      <View style={styles.checkboxRow}>
-        <Text>☑ Duy trì đăng nhập</Text>
+        {/* Nút đăng nhập */}
+        <TouchableOpacity style={styles.button} onPress={handleLogin}>
+          <Text style={styles.buttonText}>Đăng nhập</Text>
+        </TouchableOpacity>
+
+        
       </View>
-
-      <TouchableOpacity style={styles.button} onPress={handleLogin}>
-        <Text style={styles.buttonText}>Quản lý</Text>
-      </TouchableOpacity>
-
     </SafeAreaView>
+    </TouchableWithoutFeedback>
   );
 }
 
+const BLUE = "#1565c0";
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f2f2f2",
-    justifyContent: "center",
-    padding: 20,
+  container: { flex: 1, backgroundColor: "#9ac8fc", justifyContent: "center", alignItems: "center" },
+  card: {
+    backgroundColor: "#fff", borderRadius: 12, padding: 24,
+    width: "80%", alignItems: "center",
+    shadowColor: "#000", shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
   },
-
-  logo: {
-    fontSize: 28,
-    fontWeight: "bold",
-    textAlign: "center",
-    marginBottom: 30,
-    color: "#1e88e5",
+  logoBox: {
+    width: 52, height: 52, borderRadius: 14, backgroundColor: BLUE,
+    justifyContent: "center", alignItems: "center", marginBottom: 20,
   },
-
+  inputWrapper: { marginBottom: 10, width: "100%" },
+  label: { fontSize: 11, color: "#666", marginBottom: 3 },
   input: {
-    backgroundColor: "#fff",
-    padding: 10,
-    height: 40,
-    width: "80%",
-    alignSelf: "center",
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#ccc",
-    marginBottom: 12,
+    backgroundColor: "#fff", height: 36, borderRadius: 7,
+    borderWidth: 1, borderColor: "#ccc", paddingHorizontal: 10,
+    fontSize: 13, marginBottom: 0,
   },
-
-  checkboxRow: {
-    marginBottom: 20,
-    width: "80%",
-    alignSelf: "center",
-  },
-
+  passwordRow: { flexDirection: "row", alignItems: "center" },
+  eyeBtn: { position: "absolute", right: 10 },
   button: {
-    backgroundColor: "#1e88e5",
-    padding: 12,
-    borderRadius: 8,
-    alignItems: "center",
-    width: "40%",
-    alignSelf: "center",
+    backgroundColor: BLUE, height: 38, borderRadius: 7,
+    justifyContent: "center", alignItems: "center",
+    marginBottom: 16, width: "60%", alignSelf: "center",
   },
-
-  buttonText: {
-    color: "#fff",
-    fontWeight: "bold",
-    fontSize: 15,
+  buttonText: { color: "#fff", fontSize: 14, fontWeight: "500" },
+  footer: {
+    borderTopWidth: 0.5, borderTopColor: "#ccc",
+    paddingTop: 16, alignItems: "center", gap: 8, marginTop: 6, width: "100%",
   },
+  brand: { fontSize: 15, fontWeight: "500", color: "#333" },
+  footerLinks: { flexDirection: "row", gap: 20 },
+  footerLink: { fontSize: 13, color: BLUE },
 });
