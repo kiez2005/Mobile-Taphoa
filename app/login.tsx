@@ -17,7 +17,7 @@ export default function LoginScreen() {
     if (!password) { Alert.alert("Lỗi", "Vui lòng nhập mật khẩu"); return; }
 
     try {
-      const response = await fetch("http://170.20.10.2/cuahangtaphoa", {
+      const response = await fetch("http://170.20.10.2/Login/Login", {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: `TenDangNhap=${encodeURIComponent(username)}&MatKhau=${encodeURIComponent(password)}`,
