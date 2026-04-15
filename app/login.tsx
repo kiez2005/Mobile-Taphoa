@@ -1,18 +1,19 @@
-import React, { useState, useRef } from "react";
+
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import React, { useRef, useState } from "react";
 import {
-  View,
+  ActivityIndicator,
+  Animated,
+  Keyboard,
+  SafeAreaView,
+  StyleSheet,
   Text,
   TextInput,
-  StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
-  Keyboard,
   TouchableWithoutFeedback,
-  Animated,
-  ActivityIndicator,
+  View,
 } from "react-native";
-import { useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
 
 const BLUE = "#1565c0";
 const LIGHT_BLUE = "#e8f0fe";
