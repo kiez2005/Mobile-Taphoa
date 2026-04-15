@@ -1,14 +1,14 @@
+import { router } from "expo-router";
 import React from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
   SafeAreaView,
+  ScrollView,
   StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
-
 
 const Icon = ({
   emoji,
@@ -25,9 +25,18 @@ const Icon = ({
 // ─── Data ─────────────────────────────────────────────────────────────────────
 
 const giaoDichItems = [
-  { label: "Bán hàng", emoji: "🛒", bg: "#E8F4FF", onPress: () => {} },
-  { label: "Hóa đơn", emoji: "📋", bg: "#E8F4FF", onPress: () => {} },
-
+  {
+    label: "Bán hàng",
+    emoji: "🛒",
+    bg: "#E8F4FF",
+    onPress: () => router.push("/banhang"),
+  },
+  {
+    label: "Hóa đơn",
+    emoji: "📋",
+    bg: "#E8F4FF",
+    onPress: () => router.push("/hoadon"),
+  },
 ];
 
 const hangHoaItems = [
