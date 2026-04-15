@@ -36,16 +36,25 @@ export default function TabLayout() {
         }}
       />
 
-      {/* Tab 3: Kho hàng */}
+      {/* Tab 3: Hàng hoá */}
       <Tabs.Screen
-        name="kho"
+        name="hanghoa"
         options={{
-          title: 'Kho hàng',
+          title: 'Hàng hoá',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="cube.box.fill" color={color} />,
         }}
       />
 
-      {/* Tab 4: Báo cáo */}
+       {/* Tab 4: Hoá đơn */}
+      <Tabs.Screen
+        name="hoadon"
+        options={{
+          title: 'Hoá đơn',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="doc.plaintext.fill" color={color} />,
+        }}
+      />    
+
+      {/* Tab 5: Báo cáo */}
       <Tabs.Screen
         name="baocao"
         options={{
