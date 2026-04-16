@@ -1,31 +1,34 @@
+import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  FlatList,
-  Image,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
   View,
+  Text,
+  FlatList,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
+  TextInput,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-const API_URL = 'http://172.20.10.2/HangHoa/GetHangHoa';
+const API_URL = 'http://172.20.10.2/cuahangtaphoa/HangHoa/GetHangHoa';
 
 export default function HangHoaScreen() {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
   const fetchData = async () => {
     try {
       setLoading(true);
+      setError(null);
 
       const res = await fetch(`${API_URL}?search=${encodeURIComponent(search)}`);
-      const json = await res.json();
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
 
-      // ✅ FIX: dùng json.data (backend mới)
+      const json = await res.json();
       const list = json.data || [];
 
       const formatted = list.map((item: any) => ({
@@ -35,19 +38,19 @@ export default function HangHoaScreen() {
         price: Number(item.giaBan) || 0,
         stock: Number(item.soLuongTon) || 0,
         image: item.hinhAnh
-          ? `http://172.20.10.2/cuahangtaphoa${item.hinhAnh}`
+          ? `http://172.20.10.2/cuahangtaphoa/${item.hinhAnh}`
           : 'https://via.placeholder.com/50',
       }));
 
       setData(formatted);
     } catch (error) {
       console.log('Lỗi API:', error);
+      setError('Không thể tải dữ liệu. Vui lòng thử lại sau.');
     } finally {
       setLoading(false);
     }
   };
 
-  // debounce search (đỡ spam API)
   useEffect(() => {
     const delay = setTimeout(() => {
       fetchData();
@@ -58,7 +61,7 @@ export default function HangHoaScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-
+      
       {/* SEARCH */}
       <View style={styles.searchContainer}>
         <TextInput
@@ -72,6 +75,10 @@ export default function HangHoaScreen() {
       {/* LIST */}
       {loading ? (
         <ActivityIndicator size="large" style={{ marginTop: 50 }} />
+      ) : error ? (
+        <Text style={{ textAlign: 'center', marginTop: 50, color: 'red' }}>
+          {error}
+        </Text>
       ) : (
         <FlatList
           data={data}
@@ -83,11 +90,26 @@ export default function HangHoaScreen() {
             </Text>
           }
           renderItem={({ item }) => (
-            <View style={styles.item}>
+            <TouchableOpacity
+              style={styles.item}
+              activeOpacity={0.7}
+              onPress={() =>
+                router.push({
+                  pathname: '/productdetail',
+                  params: {
+                    id: item.id,
+                    name: item.name,
+                    code: item.code,
+                    price: item.price,
+                    stock: item.stock,
+                    image: item.image,
+                  },
+                })
+              }
+            >
               <Image
                 source={{ uri: item.image }}
                 style={styles.img}
-                onError={() => console.log('Ảnh lỗi:', item.image)}
               />
 
               <View style={{ flex: 1 }}>
@@ -101,7 +123,7 @@ export default function HangHoaScreen() {
                 </Text>
                 <Text style={styles.stock}>Tồn: {item.stock}</Text>
               </View>
-            </View>
+            </TouchableOpacity>
           )}
         />
       )}
@@ -112,10 +134,12 @@ export default function HangHoaScreen() {
       </TouchableOpacity>
 
       {/* ADD */}
-      <TouchableOpacity style={styles.fab}>
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={() => router.push('/addhanghoa')}
+      >
         <Text style={styles.fabText}>＋</Text>
       </TouchableOpacity>
-
     </SafeAreaView>
   );
 }

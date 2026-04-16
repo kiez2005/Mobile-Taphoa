@@ -5,6 +5,7 @@ import {
   Alert,
   Dimensions,
   FlatList,
+  Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -66,6 +67,53 @@ interface PendingReceipt {
 
 // ─── FORMAT TIỀN ─────────────────────────────────────────────────────────────
 const fmt = (n: number) => Number(n).toLocaleString('vi-VN') + ' ₫';
+
+// ─── PRODUCT IMAGE COMPONENT ─────────────────────────────────────────────────
+// Load ảnh thật từ server, fallback về icon 📦 nếu lỗi hoặc không có ảnh
+function ProductImage({ url }: { url: string | null }) {
+  const [error, setError] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  if (!url || error) {
+    return (
+      <View style={imgStyles.wrap}>
+        <Text style={{ fontSize: 22 }}>📦</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={imgStyles.wrap}>
+      {loading && (
+        <ActivityIndicator
+          size="small"
+          color={C.blue}
+          style={{ position: 'absolute' }}
+        />
+      )}
+      <Image
+        source={{ uri: url }}
+        style={imgStyles.img}
+        resizeMode="cover"
+        onLoad={() => setLoading(false)}
+        onError={() => { setError(true); setLoading(false); }}
+      />
+    </View>
+  );
+}
+
+const imgStyles = StyleSheet.create({
+  wrap: {
+    width: 52, height: 52,
+    borderRadius: 8,
+    borderWidth: 1, borderColor: '#eee',
+    backgroundColor: '#f8f9fb',
+    alignItems: 'center', justifyContent: 'center',
+    overflow: 'hidden',
+    flexShrink: 0,
+  },
+  img: { width: 52, height: 52 },
+});
 
 // ─── TOAST COMPONENT ─────────────────────────────────────────────────────────
 function Toast({
@@ -248,15 +296,18 @@ export default function BanHangScreen() {
   // ─── RENDER SEARCH ITEM ──────────────────────────────────────────────────────
   const renderSearchItem = ({ item }: { item: SanPham }) => {
     const hetHang = item.SoLuong <= 0;
+    // Build URL ảnh: nếu HinhAnh là đường dẫn tương đối thì ghép BASE_URL
+    const imgUrl = item.HinhAnh
+      ? (item.HinhAnh.startsWith('http') ? item.HinhAnh : `${BASE_URL}/${item.HinhAnh.replace(/^\//, '')}`)
+      : null;
+
     return (
       <TouchableOpacity
         style={[styles.searchItem, hetHang && { opacity: 0.5 }]}
         onPress={() => !hetHang && addToCart(item)}
         activeOpacity={hetHang ? 1 : 0.7}
       >
-        <View style={styles.spImgPlaceholder}>
-          <Text style={{ fontSize: 20 }}>📦</Text>
-        </View>
+        <ProductImage url={imgUrl} />
         <View style={{ flex: 1 }}>
           <Text style={styles.spTen} numberOfLines={2}>{item.TenSanPham}</Text>
           {!!item.MaVach && <Text style={styles.spMavach}>{item.MaVach}</Text>}
