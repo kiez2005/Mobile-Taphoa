@@ -1,17 +1,23 @@
+import { router } from "expo-router";
 import React from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
   SafeAreaView,
+  ScrollView,
   StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { useRouter } from "expo-router";
 
-// ─── Icon ─────────────────────────────────────────
-const Icon = ({ emoji, bg }: { emoji: string; bg: string }) => (
+const Icon = ({
+  emoji,
+  bg,
+}: {
+  emoji: string;
+  bg: string;
+}) => (
   <View style={[styles.iconBox, { backgroundColor: bg }]}>
     <Text style={styles.iconEmoji}>{emoji}</Text>
   </View>
