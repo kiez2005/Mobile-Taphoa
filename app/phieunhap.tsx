@@ -35,9 +35,8 @@ export default function PhieuNhap() {
 
     const handleCreate = async () => {
         const newPhieuNhap = {
-            MaNhaCungCap: 1, // Thay đổi theo yêu cầu của API
-            MaNguoiDung: 1,  // Thay đổi theo yêu cầu của API
-            // Thêm các thông tin khác nếu cần
+            MaNhaCungCap: 1, 
+            MaNguoiDung: 1,  
         };
 
         try {
@@ -55,15 +54,15 @@ export default function PhieuNhap() {
     const handleEdit = async (id: number) => {
         const updatedPhieuNhap = {
             MaPhieuNhap: id,
-            MaNhaCungCap: 1, // Cập nhật theo yêu cầu
-            MaNguoiDung: 1,  // Cập nhật theo yêu cầu
+            MaNhaCungCap: 1,
+            MaNguoiDung: 1,  
         };
 
         try {
             const response = await axios.post(`${API_URL_PHIEUNHAP}/editpost`, updatedPhieuNhap); // Gọi API để chỉnh sửa phiếu nhập
             if (response.data.success) {
                 Alert.alert('Thành công', 'Cập nhật phiếu nhập thành công');
-                fetchData(); // Tải lại dữ liệu
+                fetchData(); 
             }
         } catch (error) {
             console.error(error);

@@ -11,9 +11,11 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
+import DateTimePickerModal from 'react-native-modal-datetime-picker';
 
 export default function ProductDetail() {
   const { id } = useLocalSearchParams();
+  const productId = Array.isArray(id) ? id[0] : id;
 
   const [loading, setLoading] = useState(true);
   const [editMode, setEditMode] = useState(false);
@@ -29,6 +31,8 @@ export default function ProductDetail() {
   const [maDanhMuc, setMaDanhMuc] = useState('');
   const [maNhaCungCap, setMaNhaCungCap] = useState('');
 
+  const [showDatePicker, setShowDatePicker] = useState(false);
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -36,7 +40,7 @@ export default function ProductDetail() {
   const fetchData = async () => {
     try {
       const res = await fetch(
-        `http://172.20.10.2/cuahangtaphoa/HangHoa/Edit?id=${id}`
+        `http://172.20.10.2/cuahangtaphoa/HangHoa/Edit?id=${productId}`
       );
       const json = await res.json();
 
@@ -49,7 +53,14 @@ export default function ProductDetail() {
         setGiaNhap(String(d.giaNhap ?? ''));
         setGiaBan(String(d.giaBan ?? ''));
         setSoLuongTon(String(d.soLuongTon ?? ''));
-        setHanSuDung(d.hanSuDung ?? '');
+
+        // ✅ lưu dạng yyyy-MM-dd
+        setHanSuDung(
+          d.hanSuDung
+            ? new Date(d.hanSuDung).toISOString().split('T')[0]
+            : ''
+        );
+
         setMaDanhMuc(String(d.maDanhMuc ?? ''));
         setMaNhaCungCap(String(d.maNhaCungCap ?? ''));
       }
@@ -60,19 +71,32 @@ export default function ProductDetail() {
     }
   };
 
+  // ✅ chọn ngày
+  const handleConfirmDate = (date: Date) => {
+    setHanSuDung(date.toISOString().split('T')[0]);
+    setShowDatePicker(false);
+  };
+
   const handleUpdate = async () => {
     try {
       const formData = new FormData();
 
-      formData.append('MaSanPham', String(id));
-      formData.append('TenSanPham', tenHang);
-      formData.append('MaVach', maHang);
+      formData.append('sp.MaSanPham', String(productId));
+      formData.append('sp.TenSanPham', tenHang);
+      formData.append('sp.MaVach', maHang);
+      formData.append('sp.SoLuong', soLuongTon);
+      formData.append('sp.MaDanhMuc', maDanhMuc);
+      formData.append('sp.MaNhaCungCap', maNhaCungCap);
+
       formData.append('GiaNhap', giaNhap);
       formData.append('GiaBan', giaBan);
-      formData.append('SoLuong', soLuongTon);
-      formData.append('HanSuDung', hanSuDung);
-      formData.append('MaDanhMuc', maDanhMuc);
-      formData.append('MaNhaCungCap', maNhaCungCap);
+
+      if (hanSuDung) {
+        formData.append(
+          'sp.HanSuDung',
+          new Date(hanSuDung).toISOString()
+        );
+      }
 
       const res = await fetch(
         'http://172.20.10.2/cuahangtaphoa/HangHoa/EditPost',
@@ -92,6 +116,7 @@ export default function ProductDetail() {
         Alert.alert('Lỗi', json.message);
       }
     } catch (err) {
+      console.log(err);
       Alert.alert('Lỗi', 'Server lỗi');
     }
   };
@@ -104,10 +129,14 @@ export default function ProductDetail() {
         style: 'destructive',
         onPress: async () => {
           try {
+            const formData = new FormData();
+            formData.append('id', String(productId));
+
             const res = await fetch(
-              `http://172.20.10.2/cuahangtaphoa/HangHoa/Delete?id=${id}`,
+              'http://172.20.10.2/cuahangtaphoa/HangHoa/Delete',
               {
                 method: 'POST',
+                body: formData,
               }
             );
 
@@ -120,6 +149,7 @@ export default function ProductDetail() {
               Alert.alert('Lỗi', json.message);
             }
           } catch (err) {
+            console.log(err);
             Alert.alert('Lỗi', 'Không kết nối server');
           }
         },
@@ -158,8 +188,25 @@ export default function ProductDetail() {
         <Text>Số lượng</Text>
         <TextInput value={soLuongTon} onChangeText={setSoLuongTon} style={styles.input} />
 
+        {/* ✅ DATE PICKER */}
         <Text>Hạn sử dụng</Text>
-        <TextInput value={hanSuDung} onChangeText={setHanSuDung} style={styles.input} />
+        <TouchableOpacity
+          style={styles.input}
+          onPress={() => setShowDatePicker(true)}
+        >
+          <Text>
+            {hanSuDung
+              ? new Date(hanSuDung).toLocaleDateString('vi-VN')
+              : 'Chọn ngày'}
+          </Text>
+        </TouchableOpacity>
+
+        <DateTimePickerModal
+          isVisible={showDatePicker}
+          mode="date"
+          onConfirm={handleConfirmDate}
+          onCancel={() => setShowDatePicker(false)}
+        />
 
         <Text>Danh mục</Text>
         <TextInput value={maDanhMuc} onChangeText={setMaDanhMuc} style={styles.input} />
@@ -199,9 +246,10 @@ const styles = StyleSheet.create({
   input: {
     borderWidth: 1,
     borderColor: '#ddd',
-    padding: 8,
+    padding: 10,
     marginVertical: 5,
     borderRadius: 6,
+    backgroundColor: '#fff',
   },
 
   row: { flexDirection: 'row', marginTop: 20, gap: 10 },
