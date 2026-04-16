@@ -17,6 +17,9 @@ export default function ProductDetail() {
   const { id } = useLocalSearchParams();
   const productId = Array.isArray(id) ? id[0] : id;
 
+export default function ProductDetail() {
+  const { id } = useLocalSearchParams();
+
   const [loading, setLoading] = useState(true);
   const [editMode, setEditMode] = useState(false);
 
@@ -41,6 +44,7 @@ export default function ProductDetail() {
     try {
       const res = await fetch(
         `http://172.20.10.2/cuahangtaphoa/HangHoa/Edit?id=${productId}`
+        `http://172.20.10.2/cuahangtaphoa/HangHoa/Edit?id=${id}`
       );
       const json = await res.json();
 
@@ -61,6 +65,7 @@ export default function ProductDetail() {
             : ''
         );
 
+        setHanSuDung(d.hanSuDung ?? '');
         setMaDanhMuc(String(d.maDanhMuc ?? ''));
         setMaNhaCungCap(String(d.maNhaCungCap ?? ''));
       }
@@ -97,6 +102,15 @@ export default function ProductDetail() {
           new Date(hanSuDung).toISOString()
         );
       }
+      formData.append('MaSanPham', String(id));
+      formData.append('TenSanPham', tenHang);
+      formData.append('MaVach', maHang);
+      formData.append('GiaNhap', giaNhap);
+      formData.append('GiaBan', giaBan);
+      formData.append('SoLuong', soLuongTon);
+      formData.append('HanSuDung', hanSuDung);
+      formData.append('MaDanhMuc', maDanhMuc);
+      formData.append('MaNhaCungCap', maNhaCungCap);
 
       const res = await fetch(
         'http://172.20.10.2/cuahangtaphoa/HangHoa/EditPost',
@@ -137,6 +151,10 @@ export default function ProductDetail() {
               {
                 method: 'POST',
                 body: formData,
+            const res = await fetch(
+              `http://172.20.10.2/cuahangtaphoa/HangHoa/Delete?id=${id}`,
+              {
+                method: 'POST',
               }
             );
 
@@ -207,6 +225,8 @@ export default function ProductDetail() {
           onConfirm={handleConfirmDate}
           onCancel={() => setShowDatePicker(false)}
         />
+        <Text>Hạn sử dụng</Text>
+        <TextInput value={hanSuDung} onChangeText={setHanSuDung} style={styles.input} />
 
         <Text>Danh mục</Text>
         <TextInput value={maDanhMuc} onChangeText={setMaDanhMuc} style={styles.input} />
@@ -250,6 +270,9 @@ const styles = StyleSheet.create({
     marginVertical: 5,
     borderRadius: 6,
     backgroundColor: '#fff',
+    padding: 8,
+    marginVertical: 5,
+    borderRadius: 6,
   },
 
   row: { flexDirection: 'row', marginTop: 20, gap: 10 },

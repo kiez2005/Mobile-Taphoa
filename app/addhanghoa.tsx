@@ -61,6 +61,10 @@ export default function AddHangHoaScreen() {
     }
   };
 
+  const [categoryId, setCategoryId] = useState('');
+  const [supplierId, setSupplierId] = useState('');
+  const [imageUri, setImageUri] = useState('');
+
   // CHỌN ẢNH
   const handleImagePicker = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -164,6 +168,28 @@ export default function AddHangHoaScreen() {
           {/* DATE */}
           <TouchableOpacity style={styles.dateBtn} onPress={() => setShowDatePicker(true)}>
             <Text>📅 {expirationDate.toLocaleDateString('vi-VN')}</Text>
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={styles.container}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Text style={styles.title}>Thêm Hàng Hóa</Text>
+
+          <TextInput placeholder="Tên" placeholderTextColor="#666" value={name} onChangeText={setName} style={styles.input} />
+          <TextInput placeholder="Mã vạch" placeholderTextColor="#666" value={code} onChangeText={setCode} style={styles.input} />
+          <TextInput placeholder="Giá nhập" placeholderTextColor="#666" value={importPrice} onChangeText={setImportPrice} style={styles.input} />
+          <TextInput placeholder="Giá bán" placeholderTextColor="#666" value={price} onChangeText={setPrice} style={styles.input} />
+          <TextInput placeholder="Số lượng" placeholderTextColor="#666" value={stock} onChangeText={setStock} style={styles.input} />
+          <TextInput placeholder="Số lượng tối thiểu" placeholderTextColor="#666" value={minStock} onChangeText={setMinStock} style={styles.input} />
+
+          {/* DATE BUTTON (ĐẸP HƠN) */}
+          <TouchableOpacity
+            style={styles.dateBtn}
+            onPress={() => setShowDatePicker(true)}
+          >
+            <Text style={{ color: '#000', fontWeight: '500' }}>
+              📅 Hạn sử dụng: {expirationDate.toLocaleDateString('vi-VN')}
+            </Text>
           </TouchableOpacity>
 
           <DateTimePickerModal
@@ -208,12 +234,17 @@ export default function AddHangHoaScreen() {
               ))}
             </Picker>
           </View>
+          <TextInput placeholder="Mã danh mục" placeholderTextColor="#666" value={categoryId} onChangeText={setCategoryId} style={styles.input} />
+          <TextInput placeholder="Mã nhà cung cấp" placeholderTextColor="#666" value={supplierId} onChangeText={setSupplierId} style={styles.input} />
 
           <TouchableOpacity style={styles.btn} onPress={handleImagePicker}>
             <Text style={styles.btnText}>Chọn ảnh</Text>
           </TouchableOpacity>
 
           {imageUri && <Image source={{ uri: imageUri }} style={styles.img} />}
+          {imageUri ? (
+            <Image source={{ uri: imageUri }} style={styles.img} />
+          ) : null}
 
           <TouchableOpacity style={[styles.btn, styles.submitBtn]} onPress={handleAdd}>
             <Text style={styles.btnText}>Thêm hàng hóa</Text>
@@ -230,6 +261,20 @@ const styles = StyleSheet.create({
 
   title: { fontSize: 22, fontWeight: 'bold', marginBottom: 20 },
 
+  safe: {
+    flex: 1,
+    backgroundColor: '#f2f2f2',
+  },
+  container: {
+    padding: 16,
+    paddingBottom: 40,
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    marginBottom: 20,
+    color: '#000',
+  },
   input: {
     borderWidth: 1,
     borderColor: '#ccc',
@@ -255,6 +300,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
 
+    color: '#000',
+  },
+  dateBtn: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 10,
+    backgroundColor: '#fff',
+  },
   btn: {
     backgroundColor: '#1976d2',
     padding: 12,
@@ -272,5 +327,18 @@ const styles = StyleSheet.create({
     height: 120,
     alignSelf: 'center',
     marginTop: 10,
+  submitBtn: {
+    backgroundColor: '#0d47a1',
+  },
+  btnText: {
+    color: '#fff',
+    fontWeight: '600',
+  },
+  img: {
+    width: 120,
+    height: 120,
+    marginTop: 10,
+    borderRadius: 8,
+    alignSelf: 'center',
   },
 });
