@@ -62,6 +62,16 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="chart.bar.fill" color={color} />,
         }}
       />
+
+      {/* Tab 6: Nhiều hơn*/}
+
+      <Tabs.Screen
+        name="explore"
+        options={{
+          title: 'Nhiều hơn',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="line.3.horizontal" color={color} />,
+        }}
+      />
     </Tabs>
   );
 }
