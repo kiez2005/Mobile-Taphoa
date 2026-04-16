@@ -1,131 +1,226 @@
-import React from 'react';
-import { View, Text, Image, StyleSheet, ScrollView } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
-
-type ProductParams = {
-  image?: string;
-  name?: string;
-  code?: string;
-  barcode?: string;
-  cost?: string;
-  price?: string;
-  group?: string;
-  stock?: string;
-};
+import React, { useEffect, useState } from 'react';
+import {
+  View,
+  Text,
+  Image,
+  StyleSheet,
+  ScrollView,
+  TextInput,
+  TouchableOpacity,
+  Alert,
+  ActivityIndicator,
+} from 'react-native';
+import { useLocalSearchParams, router } from 'expo-router';
 
 export default function ProductDetail() {
-  const item = useLocalSearchParams<ProductParams>();
+  const { id } = useLocalSearchParams();
+
+  const [loading, setLoading] = useState(true);
+  const [editMode, setEditMode] = useState(false);
+
+  const [data, setData] = useState<any>(null);
+
+  const [tenHang, setTenHang] = useState('');
+  const [maHang, setMaHang] = useState('');
+  const [giaNhap, setGiaNhap] = useState('');
+  const [giaBan, setGiaBan] = useState('');
+  const [soLuongTon, setSoLuongTon] = useState('');
+  const [hanSuDung, setHanSuDung] = useState('');
+  const [maDanhMuc, setMaDanhMuc] = useState('');
+  const [maNhaCungCap, setMaNhaCungCap] = useState('');
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      const res = await fetch(
+        `http://172.20.10.2/cuahangtaphoa/HangHoa/Edit?id=${id}`
+      );
+      const json = await res.json();
+
+      if (json.success) {
+        const d = json.data;
+        setData(d);
+
+        setTenHang(d.tenHang);
+        setMaHang(d.maHang);
+        setGiaNhap(String(d.giaNhap ?? ''));
+        setGiaBan(String(d.giaBan ?? ''));
+        setSoLuongTon(String(d.soLuongTon ?? ''));
+        setHanSuDung(d.hanSuDung ?? '');
+        setMaDanhMuc(String(d.maDanhMuc ?? ''));
+        setMaNhaCungCap(String(d.maNhaCungCap ?? ''));
+      }
+    } catch (e) {
+      Alert.alert('Lỗi', 'Không load được dữ liệu');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdate = async () => {
+    try {
+      const formData = new FormData();
+
+      formData.append('MaSanPham', String(id));
+      formData.append('TenSanPham', tenHang);
+      formData.append('MaVach', maHang);
+      formData.append('GiaNhap', giaNhap);
+      formData.append('GiaBan', giaBan);
+      formData.append('SoLuong', soLuongTon);
+      formData.append('HanSuDung', hanSuDung);
+      formData.append('MaDanhMuc', maDanhMuc);
+      formData.append('MaNhaCungCap', maNhaCungCap);
+
+      const res = await fetch(
+        'http://172.20.10.2/cuahangtaphoa/HangHoa/EditPost',
+        {
+          method: 'POST',
+          body: formData,
+        }
+      );
+
+      const json = await res.json();
+
+      if (json.success) {
+        Alert.alert('OK', 'Cập nhật thành công');
+        setEditMode(false);
+        fetchData();
+      } else {
+        Alert.alert('Lỗi', json.message);
+      }
+    } catch (err) {
+      Alert.alert('Lỗi', 'Server lỗi');
+    }
+  };
+
+  const handleDelete = async () => {
+    Alert.alert('Xoá', 'Bạn có chắc muốn xoá?', [
+      { text: 'Huỷ' },
+      {
+        text: 'Xoá',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            const res = await fetch(
+              `http://172.20.10.2/cuahangtaphoa/HangHoa/Delete?id=${id}`,
+              {
+                method: 'POST',
+              }
+            );
+
+            const json = await res.json();
+
+            if (json.success) {
+              Alert.alert('OK', 'Đã xoá');
+              router.back();
+            } else {
+              Alert.alert('Lỗi', json.message);
+            }
+          } catch (err) {
+            Alert.alert('Lỗi', 'Không kết nối server');
+          }
+        },
+      },
+    ]);
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator />
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={styles.container}>
-      {/* HEADER SECTION */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>THÔNG TIN CƠ BẢN</Text>
+      <Image source={{ uri: data?.hinhAnh }} style={styles.image} />
 
-        <Image source={{ uri: item.image }} style={styles.image} />
+      {!editMode ? (
+        <Text style={styles.name}>{data?.tenHang}</Text>
+      ) : (
+        <TextInput value={tenHang} onChangeText={setTenHang} style={styles.input} />
+      )}
 
-        <Text style={styles.name}>{item.name}</Text>
+      <View style={styles.card}>
+        <Text>Mã hàng</Text>
+        <TextInput value={maHang} onChangeText={setMaHang} style={styles.input} />
+
+        <Text>Giá nhập</Text>
+        <TextInput value={giaNhap} onChangeText={setGiaNhap} style={styles.input} />
+
+        <Text>Giá bán</Text>
+        <TextInput value={giaBan} onChangeText={setGiaBan} style={styles.input} />
+
+        <Text>Số lượng</Text>
+        <TextInput value={soLuongTon} onChangeText={setSoLuongTon} style={styles.input} />
+
+        <Text>Hạn sử dụng</Text>
+        <TextInput value={hanSuDung} onChangeText={setHanSuDung} style={styles.input} />
+
+        <Text>Danh mục</Text>
+        <TextInput value={maDanhMuc} onChangeText={setMaDanhMuc} style={styles.input} />
+
+        <Text>Nhà cung cấp</Text>
+        <TextInput value={maNhaCungCap} onChangeText={setMaNhaCungCap} style={styles.input} />
       </View>
 
-      {/* INFO GRID */}
-      <View style={styles.card}>
-        <View style={styles.row}>
-          <View style={styles.col}>
-            <Text style={styles.label}>Mã hàng</Text>
-            <Text style={styles.value}>{item.code}</Text>
-          </View>
+      <View style={styles.row}>
+        {!editMode ? (
+          <TouchableOpacity style={styles.btn} onPress={() => setEditMode(true)}>
+            <Text style={styles.btnText}>Sửa</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity style={styles.btn} onPress={handleUpdate}>
+            <Text style={styles.btnText}>Lưu</Text>
+          </TouchableOpacity>
+        )}
 
-          <View style={styles.col}>
-            <Text style={styles.label}>Mã vạch</Text>
-            <Text style={styles.value}>{item.barcode}</Text>
-          </View>
-        </View>
-
-        <View style={styles.row}>
-          <View style={styles.col}>
-            <Text style={styles.label}>Giá vốn</Text>
-            <Text style={styles.value}>
-              {Number(item.cost || 0).toLocaleString('vi-VN')}
-            </Text>
-          </View>
-
-          <View style={styles.col}>
-            <Text style={styles.label}>Giá bán</Text>
-            <Text style={styles.value}>
-              {Number(item.price || 0).toLocaleString('vi-VN')}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.row}>
-          <View style={styles.col}>
-            <Text style={styles.label}>Nhóm hàng</Text>
-            <Text style={styles.value}>{item.group}</Text>
-          </View>
-
-          <View style={styles.col}>
-            <Text style={styles.label}>Tồn kho</Text>
-            <Text style={styles.value}>{item.stock}</Text>
-          </View>
-        </View>
+        <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete}>
+          <Text style={styles.btnText}>Xoá</Text>
+        </TouchableOpacity>
       </View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  container: { flex: 1, backgroundColor: '#f5f6f8', padding: 16 },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+
+  image: { width: 120, height: 120, borderRadius: 10 },
+  name: { fontSize: 20, fontWeight: 'bold', marginVertical: 10 },
+
+  card: { backgroundColor: '#fff', padding: 16, borderRadius: 10 },
+
+  input: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    padding: 8,
+    marginVertical: 5,
+    borderRadius: 6,
+  },
+
+  row: { flexDirection: 'row', marginTop: 20, gap: 10 },
+
+  btn: {
     flex: 1,
-    backgroundColor: '#f5f6f8',
+    backgroundColor: '#1976d2',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
   },
 
-  section: {
-    backgroundColor: '#fff',
-    padding: 16,
-    marginBottom: 10,
-  },
-
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#6b7280',
-    marginBottom: 12,
-  },
-
-  image: {
-    width: 90,
-    height: 90,
-    borderRadius: 10,
-    marginBottom: 10,
-  },
-
-  name: {
-    fontSize: 18,
-    fontWeight: '700',
-  },
-
-  card: {
-    backgroundColor: '#fff',
-    padding: 16,
-  },
-
-  row: {
-    flexDirection: 'row',
-    marginBottom: 16,
-  },
-
-  col: {
+  deleteBtn: {
     flex: 1,
+    backgroundColor: 'red',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
   },
 
-  label: {
-    fontSize: 12,
-    color: '#9ca3af',
-    marginBottom: 4,
-  },
-
-  value: {
-    fontSize: 15,
-    fontWeight: '600',
-  },
+  btnText: { color: '#fff', fontWeight: '600' },
 });
