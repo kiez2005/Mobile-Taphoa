@@ -15,7 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 // ─── API ───────────────────────────────────────────────────────────────────
-const API_BASE = 'http://172.20.10.2/cuahangtaphoa';
+const API_BASE = 'http://172.20.10.5/cuahangtaphoa';
 
 // ─── COLORS ────────────────────────────────────────────────────────────────
 const C = {

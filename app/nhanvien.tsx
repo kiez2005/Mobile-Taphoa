@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,19 +11,14 @@ import {
   ActivityIndicator,
   RefreshControl,
   Alert,
+  TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 
-// =============================================
-// ⚙️ CẤU HÌNH API
-// =============================================
-const BASE_URL = 'http://172.20.10.2/cuahangtaphoa';
+const BASE_URL = 'http://172.20.10.5/cuahangtaphoa';
 const API_ENDPOINT = `${BASE_URL}/NhanVien/GetAll`;
 
-// =============================================
-// 📦 Types
-// =============================================
 type Employee = {
   id: string;
   name: string;
@@ -35,9 +30,6 @@ type Employee = {
   status: boolean;
 };
 
-// =============================================
-// 🔄 Hàm gọi API
-// =============================================
 async function fetchEmployees(): Promise<Employee[]> {
   const response = await fetch(API_ENDPOINT, {
     method: 'GET',
@@ -47,18 +39,12 @@ async function fetchEmployees(): Promise<Employee[]> {
     },
   });
 
-  if (!response.ok) {
-    throw new Error(`Lỗi server: ${response.status}`);
-  }
+  if (!response.ok) throw new Error(`Lỗi server: ${response.status}`);
 
   const json = await response.json();
-
-  if (!json.success) {
-    throw new Error(json.message ?? 'Lỗi không xác định');
-  }
+  if (!json.success) throw new Error(json.message ?? 'Lỗi không xác định');
 
   const list: any[] = json.data ?? [];
-
   return list.map((item: any) => ({
     id:       String(item.id),
     name:     item.name     ?? '—',
@@ -71,9 +57,6 @@ async function fetchEmployees(): Promise<Employee[]> {
   }));
 }
 
-// =============================================
-// 🧩 Avatar
-// =============================================
 function Avatar() {
   return (
     <View style={styles.avatar}>
@@ -82,12 +65,13 @@ function Avatar() {
   );
 }
 
-// =============================================
-// 🧩 Employee Item
-// =============================================
 function EmployeeItem({ item }: { item: Employee }) {
   return (
-    <TouchableOpacity style={styles.employeeItem} activeOpacity={0.6}>
+    <TouchableOpacity
+      style={styles.employeeItem}
+      activeOpacity={0.6}
+      onPress={() => router.push(`/thongtinnhanvien?id=${item.id}`)}
+    >
       <Avatar />
       <View style={styles.employeeInfo}>
         <Text style={styles.employeeName}>{item.name}</Text>
@@ -110,9 +94,6 @@ function EmployeeItem({ item }: { item: Employee }) {
   );
 }
 
-// =============================================
-// 🧩 Empty State
-// =============================================
 function EmptyState({ onRetry }: { onRetry: () => void }) {
   return (
     <View style={styles.centered}>
@@ -125,9 +106,6 @@ function EmptyState({ onRetry }: { onRetry: () => void }) {
   );
 }
 
-// =============================================
-// 🧩 Error State
-// =============================================
 function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
     <View style={styles.centered}>
@@ -141,18 +119,17 @@ function ErrorState({ message, onRetry }: { message: string; onRetry: () => void
   );
 }
 
-// =============================================
-// 📱 Main Screen
-// =============================================
-export default function EmployeeScreen({ navigation }: any) {
+export default function EmployeeScreen() {
   const [employees, setEmployees]   = useState<Employee[]>([]);
   const [filtered, setFiltered]     = useState<Employee[]>([]);
   const [filter, setFilter]         = useState<'all' | 'active' | 'inactive'>('all');
   const [loading, setLoading]       = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError]           = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showSearch, setShowSearch]   = useState(false);
+  const searchInputRef = useRef<TextInput>(null);
 
-  // ── Gọi API ──
   const loadData = useCallback(async (isRefresh = false) => {
     try {
       if (isRefresh) setRefreshing(true);
@@ -172,14 +149,34 @@ export default function EmployeeScreen({ navigation }: any) {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // ── Filter ──
   useEffect(() => {
-    if (filter === 'all')      setFiltered(employees);
-    else if (filter === 'active')   setFiltered(employees.filter(e => e.status));
-    else if (filter === 'inactive') setFiltered(employees.filter(e => !e.status));
-  }, [employees, filter]);
+    let result = employees;
 
-  // ── Render nội dung ──
+    if (filter === 'active') result = result.filter(e => e.status);
+    else if (filter === 'inactive') result = result.filter(e => !e.status);
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(e =>
+        e.name.toLowerCase().includes(q) ||
+        e.code.toLowerCase().includes(q) ||
+        e.phone.includes(q)
+      );
+    }
+
+    setFiltered(result);
+  }, [employees, filter, searchQuery]);
+
+  const toggleSearch = () => {
+    if (showSearch) {
+      setShowSearch(false);
+      setSearchQuery('');
+    } else {
+      setShowSearch(true);
+      setTimeout(() => searchInputRef.current?.focus(), 100);
+    }
+  };
+
   const renderContent = () => {
     if (loading) {
       return (
@@ -210,10 +207,9 @@ export default function EmployeeScreen({ navigation }: any) {
         ListHeaderComponent={
           <Text style={styles.sectionLabel}>{filtered.length} NHÂN VIÊN</Text>
         }
-        renderItem={({ item, index }) => (
+        renderItem={({ item }) => (
           <View style={styles.listCard}>
             <EmployeeItem item={item} />
-            {index < filtered.length - 1 && <View style={styles.separator} />}
           </View>
         )}
         ItemSeparatorComponent={() => <View style={{ height: 1 }} />}
@@ -227,32 +223,43 @@ export default function EmployeeScreen({ navigation }: any) {
 
       {/* Header */}
       <View style={styles.header}>
-        
-      <TouchableOpacity 
-        onPress={() => router.back()} 
-        style={styles.headerBack}
-      >
-        <Ionicons name="chevron-back" size={24} color="#007AFF" />
-      </TouchableOpacity>
+        <TouchableOpacity onPress={() => router.back()} style={styles.headerBack}>
+          <Ionicons name="chevron-back" size={24} color="#007AFF" />
+        </TouchableOpacity>
         <Text style={styles.headerTitle}>Nhân viên</Text>
         <View style={styles.headerActions}>
-          <TouchableOpacity style={styles.iconBtn}>
-            <Ionicons name="search-outline" size={22} color="#007AFF" />
+          <TouchableOpacity style={styles.iconBtn} onPress={toggleSearch}>
+            <Ionicons
+              name={showSearch ? 'close-outline' : 'search-outline'}
+              size={22}
+              color="#007AFF"
+            />
           </TouchableOpacity>
           <TouchableOpacity style={styles.iconBtn} onPress={() => loadData()}>
             <Ionicons name="refresh-outline" size={22} color="#007AFF" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.iconBtn}>
-            <Ionicons name="ellipsis-horizontal" size={22} color="#007AFF" />
-          </TouchableOpacity>
         </View>
       </View>
 
+      {/* Search bar */}
+      {showSearch && (
+        <View style={styles.searchBar}>
+          <Ionicons name="search-outline" size={16} color="#8A8A8E" style={{ marginRight: 8 }} />
+          <TextInput
+            ref={searchInputRef}
+            style={styles.searchInput}
+            placeholder="Tìm theo tên, mã, số điện thoại..."
+            placeholderTextColor="#C7C7CC"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            clearButtonMode="while-editing"
+            returnKeyType="search"
+          />
+        </View>
+      )}
+
       {/* Filter bar */}
       <View style={styles.filterBar}>
-        <TouchableOpacity style={styles.filterIconBtn}>
-          <Ionicons name="options-outline" size={18} color="#555" />
-        </TouchableOpacity>
         {(['all', 'active', 'inactive'] as const).map((f) => {
           const label = f === 'all' ? 'Tất cả' : f === 'active' ? 'Đang làm việc' : 'Nghỉ việc';
           const active = filter === f;
@@ -271,29 +278,23 @@ export default function EmployeeScreen({ navigation }: any) {
       </View>
 
       {/* Content */}
-      <View style={styles.content}>
-        {renderContent()}
-      </View>
+      <View style={styles.content}>{renderContent()}</View>
 
       {/* FAB */}
-      <TouchableOpacity 
-        style={styles.fab} 
+      <TouchableOpacity
+        style={styles.fab}
         activeOpacity={0.8}
-        onPress={() => router.push('/addnhanvien')} 
->
+        onPress={() => router.push('/addnhanvien')}
+      >
         <Ionicons name="add" size={28} color="#fff" />
       </TouchableOpacity>
     </SafeAreaView>
   );
 }
 
-// =============================================
-// 🎨 Styles
-// =============================================
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#F2F2F7' },
 
-  // Header
   header: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff',
     paddingHorizontal: 8, paddingVertical: 10,
@@ -304,25 +305,33 @@ const styles = StyleSheet.create({
   headerActions: { flexDirection: 'row', alignItems: 'center' },
   iconBtn:       { padding: 6, marginLeft: 4 },
 
-  // Filter
+  searchBar: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#fff',
+    paddingHorizontal: 16, paddingVertical: 8,
+    borderBottomWidth: 0.5, borderBottomColor: '#E0E0E0',
+  },
+  searchInput: {
+    flex: 1, fontSize: 15, color: '#111',
+    paddingVertical: 8, paddingHorizontal: 10,
+    backgroundColor: '#F2F2F7', borderRadius: 10,
+  },
+
   filterBar: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff',
     paddingHorizontal: 12, paddingVertical: 10, gap: 8,
     borderBottomWidth: 0.5, borderBottomColor: '#E0E0E0',
   },
-  filterIconBtn:       { padding: 4 },
-  filterChip:          { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#ddd', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 5, backgroundColor: '#fff' },
-  filterChipActive:    { backgroundColor: '#2979FF', borderColor: '#2979FF' },
-  filterChipText:      { fontSize: 13, color: '#333' },
-  filterChipTextActive:{ fontSize: 13, color: '#fff', fontWeight: '600' },
+  filterChip:           { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#ddd', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 5, backgroundColor: '#fff' },
+  filterChipActive:     { backgroundColor: '#2979FF', borderColor: '#2979FF' },
+  filterChipText:       { fontSize: 13, color: '#333' },
+  filterChipTextActive: { fontSize: 13, color: '#fff', fontWeight: '600' },
 
-  // Content
   content:      { flex: 1 },
   listContent:  { paddingTop: 12, paddingBottom: 100 },
   sectionLabel: { fontSize: 12, fontWeight: '600', color: '#8A8A8E', letterSpacing: 0.4, paddingHorizontal: 20, marginBottom: 8, textTransform: 'uppercase' },
   listCard:     { backgroundColor: '#fff', marginHorizontal: 12, borderRadius: 12, overflow: 'hidden', marginBottom: 1 },
 
-  // Employee item
   employeeItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 13, paddingHorizontal: 16 },
   avatar:       { width: 40, height: 40, borderRadius: 20, backgroundColor: '#D6E8F8', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
   employeeInfo: { flex: 1 },
@@ -331,7 +340,6 @@ const styles = StyleSheet.create({
   employeePhone:{ fontSize: 12, color: '#8A8A8E', marginTop: 2 },
   rightCol:     { alignItems: 'flex-end' },
 
-  // Status badge
   statusBadge:        { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 },
   statusActive:       { backgroundColor: '#E8F5E9' },
   statusInactive:     { backgroundColor: '#FFEBEE' },
@@ -339,9 +347,6 @@ const styles = StyleSheet.create({
   statusActiveText:   { color: '#2E7D32' },
   statusInactiveText: { color: '#C62828' },
 
-  separator: { height: 0.5, backgroundColor: '#E5E5EA', marginLeft: 68 },
-
-  // States
   centered:    { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 80 },
   loadingText: { marginTop: 12, fontSize: 14, color: '#8A8A8E' },
   emptyText:   { marginTop: 12, fontSize: 15, color: '#8A8A8E' },
@@ -350,7 +355,6 @@ const styles = StyleSheet.create({
   retryBtn:    { marginTop: 16, backgroundColor: '#2979FF', paddingHorizontal: 24, paddingVertical: 10, borderRadius: 20 },
   retryBtnText:{ color: '#fff', fontSize: 14, fontWeight: '600' },
 
-  // FAB
   fab: {
     position: 'absolute', bottom: 28, right: 20,
     width: 52, height: 52, borderRadius: 26,

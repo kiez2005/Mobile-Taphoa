@@ -20,7 +20,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 
-const BASE_URL = 'http://172.20.10.2/cuahangtaphoa';
+const BASE_URL = 'http://172.20.10.5/cuahangtaphoa';
 
 // ─── COLORS ──────────────────────────────────────────────────────────────────
 const C = {

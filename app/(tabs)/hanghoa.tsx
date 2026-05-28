@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-const API_URL = 'http://172.20.10.2/cuahangtaphoa/HangHoa/GetHangHoa';
+const API_URL = 'http://172.20.10.5/cuahangtaphoa/HangHoa/GetHangHoa';
 
 export default function HangHoaScreen() {
   const [data, setData] = useState<any[]>([]);
@@ -38,7 +38,7 @@ export default function HangHoaScreen() {
         price: Number(item.giaBan) || 0,
         stock: Number(item.soLuongTon) || 0,
         image: item.hinhAnh
-          ? `http://172.20.10.2/cuahangtaphoa/${item.hinhAnh}`
+          ? `http://172.20.10.5/cuahangtaphoa/${item.hinhAnh}`
           : 'https://via.placeholder.com/50',
       }));
 

@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-  View,
   Text,
   TextInput,
   TouchableOpacity,
@@ -10,106 +9,157 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
-import DateTimePickerModal from 'react-native-modal-datetime-picker';
-import { router } from 'expo-router';
+import { useLocalSearchParams, router } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function AddHangHoaScreen() {
+  const params = useLocalSearchParams<any>();
+
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
   const [importPrice, setImportPrice] = useState('');
   const [price, setPrice] = useState('');
   const [stock, setStock] = useState('');
   const [minStock, setMinStock] = useState('');
-  const [expirationDate, setExpirationDate] = useState(new Date());
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [categoryId, setCategoryId] = useState('');
-  const [supplierId, setSupplierId] = useState('');
-  const [imageUri, setImageUri] = useState('');
 
-  // CHỌN ẢNH
+  const [categoryId, setCategoryId] = useState('');
+  const [categoryName, setCategoryName] = useState('');
+  const [supplierId, setSupplierId] = useState('');
+  const [supplierName, setSupplierName] = useState('');
+  const [imageUri, setImageUri] = useState<string>('');
+
+  const [loading, setLoading] = useState(false);
+
+  // Sync category & supplier từ params hoặc global state
+  useFocusEffect(
+    React.useCallback(() => {
+      if (params?.categoryId) {
+        setCategoryId(String(params.categoryId));
+        setCategoryName(String(params.categoryName || ''));
+      }
+      if (params?.supplierId) {
+        setSupplierId(String(params.supplierId));
+        setSupplierName(String(params.supplierName || ''));
+      }
+
+      // Global state (nếu bạn dùng cách này)
+      if ((global as any).selectedCategory) {
+        setCategoryId((global as any).selectedCategory.id);
+        setCategoryName((global as any).selectedCategory.name);
+        (global as any).selectedCategory = null;
+      }
+      if ((global as any).selectedSupplier) {
+        setSupplierId((global as any).selectedSupplier.id);
+        setSupplierName((global as any).selectedSupplier.name);
+        (global as any).selectedSupplier = null;
+      }
+    }, [JSON.stringify(params)])
+  );
+
   const handleImagePicker = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-
     if (!permission.granted) {
-      Alert.alert('Lỗi', 'Bạn chưa cấp quyền thư viện ảnh');
+      Alert.alert('Lỗi', 'Bạn chưa cấp quyền truy cập thư viện ảnh');
       return;
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 1,
+      quality: 0.8,        // giảm nhẹ để upload nhanh hơn
+      allowsEditing: true,
+      aspect: [1, 1],      // vuông (tùy chọn)
     });
 
-    if (!result.canceled) {
+    if (!result.canceled && result.assets?.[0]) {
       setImageUri(result.assets[0].uri);
     }
   };
 
-  // CHỌN NGÀY
-  const handleConfirmDate = (date: Date) => {
-    setExpirationDate(date);
-    setShowDatePicker(false);
+  const removeImage = () => {
+    setImageUri('');
   };
 
   const handleAdd = async () => {
-    if (
-      !name ||
-      !code ||
-      !importPrice ||
-      !price ||
-      !stock ||
-      !minStock ||
-      !categoryId ||
-      !supplierId
-    ) {
-      Alert.alert('Thiếu thông tin', 'Vui lòng nhập đầy đủ dữ liệu');
+    if (!name.trim() || !code.trim() || !categoryId || !supplierId) {
+      Alert.alert('Thiếu thông tin', 'Vui lòng nhập đầy đủ tên, mã vạch, danh mục và nhà cung cấp');
       return;
     }
 
+    const API_URL = 'http://172.20.10.5/cuahangtaphoa/HangHoa/Create';
+
     const formData = new FormData();
-    formData.append('sp.TenSanPham', name);
-    formData.append('sp.MaVach', code);
-    formData.append('sp.GiaNhap', String(importPrice));
-    formData.append('sp.GiaBan', String(price));
-    formData.append('sp.SoLuong', String(stock));
-    formData.append('sp.SoLuongToiThieu', String(minStock));
-    formData.append('sp.HanSuDung', expirationDate.toISOString());
-    formData.append('sp.MaDanhMuc', String(categoryId));
-    formData.append('sp.MaNhaCungCap', String(supplierId));
+    formData.append('TenSanPham', name.trim());
+    formData.append('MaVach', code.trim());
+    formData.append('GiaNhap', importPrice || '0');
+    formData.append('GiaBan', price || '0');
+    formData.append('SoLuong', stock || '0');
+    formData.append('SoLuongToiThieu', minStock || '0');
+    formData.append('MaDanhMuc', categoryId);
+    formData.append('MaNhaCungCap', supplierId);
 
     if (imageUri) {
-      const fileName = imageUri.split('/').pop();
-
       formData.append('fileAnh', {
         uri: imageUri,
-        name: fileName,
+        name: 'sanpham.jpg',
         type: 'image/jpeg',
       } as any);
     }
 
-    try {
-      const res = await fetch(
-        'http://172.20.10.2/cuahangtaphoa/HangHoa/Create',
-        {
-          method: 'POST',
-          body: formData,
-        }
-      );
+    setLoading(true);
 
-      const json = await res.json();
+    try {
+      console.log('Đang gửi request đến:', API_URL);
+
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        body: formData,
+      });
+
+      console.log('Status code:', res.status);
+
+      const responseText = await res.text();
+      console.log('Response body:', responseText.substring(0, 600));
+
+      if (!res.ok) {
+        Alert.alert(
+          'Lỗi Server',
+          `Mã lỗi: ${res.status}\n\n${responseText.substring(0, 400)}...`
+        );
+        return;
+      }
+
+      const json = JSON.parse(responseText);
 
       if (json.success) {
-        Alert.alert('Thành công', 'Đã thêm hàng hóa', [
-          { text: 'OK', onPress: () => router.back() },
+        Alert.alert('Thành công', 'Thêm hàng hóa thành công!', [
+          { 
+            text: 'OK', 
+            onPress: () => {
+              // Reset form sau khi thêm thành công
+              setName('');
+              setCode('');
+              setImportPrice('');
+              setPrice('');
+              setStock('');
+              setMinStock('');
+              setImageUri('');
+              router.back();
+            }
+          },
         ]);
       } else {
-        Alert.alert('Lỗi', json.message || 'Thất bại');
+        Alert.alert('Lỗi', json.message || 'Thêm thất bại');
       }
-    } catch (err) {
-      Alert.alert('Lỗi', 'Không kết nối được server');
+    } catch (error: any) {
+      console.error('Lỗi chi tiết:', error);
+      Alert.alert('Lỗi', `Không thể kết nối server hoặc parse dữ liệu\n\n${error.message}`);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -119,50 +169,102 @@ export default function AddHangHoaScreen() {
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <ScrollView
-          style={{ flex: 1 }}
-          contentContainerStyle={styles.container}
-          keyboardShouldPersistTaps="handled"
-        >
-          <Text style={styles.title}>Thêm Hàng Hóa</Text>
+        <ScrollView contentContainerStyle={styles.container}>
+          <Text style={styles.title}>Thêm Hàng Hóa Mới</Text>
 
-          <TextInput placeholder="Tên" placeholderTextColor="#666" value={name} onChangeText={setName} style={styles.input} />
-          <TextInput placeholder="Mã vạch" placeholderTextColor="#666" value={code} onChangeText={setCode} style={styles.input} />
-          <TextInput placeholder="Giá nhập" placeholderTextColor="#666" value={importPrice} onChangeText={setImportPrice} style={styles.input} />
-          <TextInput placeholder="Giá bán" placeholderTextColor="#666" value={price} onChangeText={setPrice} style={styles.input} />
-          <TextInput placeholder="Số lượng" placeholderTextColor="#666" value={stock} onChangeText={setStock} style={styles.input} />
-          <TextInput placeholder="Số lượng tối thiểu" placeholderTextColor="#666" value={minStock} onChangeText={setMinStock} style={styles.input} />
+          <TextInput
+            style={styles.input}
+            placeholder="Tên sản phẩm *"
+            placeholderTextColor="#888"
+            value={name}
+            onChangeText={setName}
+          />
 
-          {/* DATE BUTTON (ĐẸP HƠN) */}
-          <TouchableOpacity
-            style={styles.dateBtn}
-            onPress={() => setShowDatePicker(true)}
-          >
-            <Text style={{ color: '#000', fontWeight: '500' }}>
-              📅 Hạn sử dụng: {expirationDate.toLocaleDateString('vi-VN')}
+          <TextInput
+            style={styles.input}
+            placeholder="Mã vạch *"
+            placeholderTextColor="#888"
+            value={code}
+            onChangeText={setCode}
+          />
+
+          <TextInput
+            style={styles.input}
+            placeholder="Giá nhập"
+            placeholderTextColor="#888"
+            keyboardType="numeric"
+            value={importPrice}
+            onChangeText={setImportPrice}
+          />
+
+          <TextInput
+            style={styles.input}
+            placeholder="Giá bán"
+            placeholderTextColor="#888"
+            keyboardType="numeric"
+            value={price}
+            onChangeText={setPrice}
+          />
+
+          <TextInput
+            style={styles.input}
+            placeholder="Số lượng"
+            placeholderTextColor="#888"
+            keyboardType="numeric"
+            value={stock}
+            onChangeText={setStock}
+          />
+
+          <TextInput
+            style={styles.input}
+            placeholder="Số lượng tối thiểu"
+            placeholderTextColor="#888"
+            keyboardType="numeric"
+            value={minStock}
+            onChangeText={setMinStock}
+          />
+
+          {/* Danh mục */}
+          <TouchableOpacity style={styles.box} onPress={() => router.push('/SelectCategory')}>
+            <Text style={{ color: categoryName ? '#000' : '#888' }}>
+              {categoryName ? `Danh mục: ${categoryName}` : 'Chọn danh mục *'}
             </Text>
           </TouchableOpacity>
 
-          <DateTimePickerModal
-            isVisible={showDatePicker}
-            mode="date"
-            onConfirm={handleConfirmDate}
-            onCancel={() => setShowDatePicker(false)}
-          />
+          {/* Nhà cung cấp */}
+          <TouchableOpacity style={styles.box} onPress={() => router.push('/SelectSupplier')}>
+            <Text style={{ color: supplierName ? '#000' : '#888' }}>
+              {supplierName ? `Nhà cung cấp: ${supplierName}` : 'Chọn nhà cung cấp *'}
+            </Text>
+          </TouchableOpacity>
 
-          <TextInput placeholder="Mã danh mục" placeholderTextColor="#666" value={categoryId} onChangeText={setCategoryId} style={styles.input} />
-          <TextInput placeholder="Mã nhà cung cấp" placeholderTextColor="#666" value={supplierId} onChangeText={setSupplierId} style={styles.input} />
-
+          {/* Chọn ảnh */}
           <TouchableOpacity style={styles.btn} onPress={handleImagePicker}>
-            <Text style={styles.btnText}>Chọn ảnh</Text>
+            <Text style={{ color: '#fff', fontWeight: '600' }}>📷 Chọn ảnh sản phẩm</Text>
           </TouchableOpacity>
 
           {imageUri ? (
-            <Image source={{ uri: imageUri }} style={styles.img} />
+            <View style={{ alignItems: 'center', marginVertical: 12 }}>
+              <Image source={{ uri: imageUri }} style={styles.img} />
+              <TouchableOpacity onPress={removeImage} style={styles.removeBtn}>
+                <Text style={{ color: 'red', fontWeight: 'bold' }}>Xóa ảnh</Text>
+              </TouchableOpacity>
+            </View>
           ) : null}
 
-          <TouchableOpacity style={[styles.btn, styles.submitBtn]} onPress={handleAdd}>
-            <Text style={styles.btnText}>Thêm hàng hóa</Text>
+          {/* Nút lưu */}
+          <TouchableOpacity 
+            style={[styles.saveBtn, loading && { opacity: 0.7 }]} 
+            onPress={handleAdd}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>
+                💾 LƯU HÀNG HÓA
+              </Text>
+            )}
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -171,56 +273,57 @@ export default function AddHangHoaScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: '#f2f2f2',
-  },
-  container: {
-    padding: 16,
-    paddingBottom: 40,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    marginBottom: 20,
-    color: '#000',
-  },
+  safe: { flex: 1, backgroundColor: '#f2f2f2' },
+  container: { padding: 16 },
+
+  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 20, textAlign: 'center' },
+
   input: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 10,
     backgroundColor: '#fff',
+    padding: 14,
+    borderRadius: 10,
+    marginBottom: 12,
+    fontSize: 16,
     color: '#000',
-  },
-  dateBtn: {
     borderWidth: 1,
     borderColor: '#ddd',
-    padding: 12,
-    borderRadius: 10,
-    marginBottom: 10,
-    backgroundColor: '#fff',
   },
+
+  box: {
+    backgroundColor: '#fff',
+    padding: 14,
+    borderRadius: 10,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+
   btn: {
     backgroundColor: '#1976d2',
-    padding: 12,
-    borderRadius: 8,
+    padding: 14,
+    borderRadius: 10,
     alignItems: 'center',
-    marginTop: 10,
+    marginVertical: 8,
   },
-  submitBtn: {
+
+  saveBtn: {
     backgroundColor: '#0d47a1',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 20,
   },
-  btnText: {
-    color: '#fff',
-    fontWeight: '600',
-  },
+
   img: {
-    width: 120,
-    height: 120,
-    marginTop: 10,
-    borderRadius: 8,
-    alignSelf: 'center',
+    width: 160,
+    height: 160,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+
+  removeBtn: {
+    marginTop: 8,
+    padding: 8,
   },
 });
