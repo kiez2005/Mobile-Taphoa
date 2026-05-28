@@ -1,131 +1,433 @@
-import React from 'react';
-import { View, Text, Image, StyleSheet, ScrollView } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
-
-type ProductParams = {
-  image?: string;
-  name?: string;
-  code?: string;
-  barcode?: string;
-  cost?: string;
-  price?: string;
-  group?: string;
-  stock?: string;
-};
+import React, { useEffect, useState, useCallback } from 'react';
+import {
+  View,
+  Text,
+  Image,
+  StyleSheet,
+  ScrollView,
+  TextInput,
+  TouchableOpacity,
+  Alert,
+  ActivityIndicator,
+  Platform,
+} from 'react-native';
+import { useLocalSearchParams, router } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
+import DateTimePickerModal from 'react-native-modal-datetime-picker';
+import * as ImagePicker from 'expo-image-picker';
 
 export default function ProductDetail() {
-  const item = useLocalSearchParams<ProductParams>();
+  const params = useLocalSearchParams<any>();
+  const productId = Array.isArray(params?.id) ? params.id[0] : params?.id;
+
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+
+  const [data, setData] = useState<any>(null);
+
+  const [tenHang, setTenHang] = useState('');
+  const [maHang, setMaHang] = useState('');
+  const [giaNhap, setGiaNhap] = useState('');
+  const [giaBan, setGiaBan] = useState('');
+  const [soLuongTon, setSoLuongTon] = useState('');
+  const [hanSuDung, setHanSuDung] = useState('');           // yyyy-MM-dd
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+
+  const [maDanhMuc, setMaDanhMuc] = useState('');
+  const [categoryName, setCategoryName] = useState('');
+  const [maNhaCungCap, setMaNhaCungCap] = useState('');
+  const [supplierName, setSupplierName] = useState('');
+
+  const [imageUri, setImageUri] = useState('');
+  const [showDatePicker, setShowDatePicker] = useState(false);
+
+  useEffect(() => {
+    fetchData();
+  }, [productId]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (params?.categoryId) {
+        setMaDanhMuc(String(params.categoryId));
+        setCategoryName(String(params.categoryName || ''));
+      }
+      if (params?.supplierId) {
+        setMaNhaCungCap(String(params.supplierId));
+        setSupplierName(String(params.supplierName || ''));
+      }
+      if ((global as any).selectedCategory) {
+        setMaDanhMuc((global as any).selectedCategory.id);
+        setCategoryName((global as any).selectedCategory.name);
+        (global as any).selectedCategory = null;
+      }
+      if ((global as any).selectedSupplier) {
+        setMaNhaCungCap((global as any).selectedSupplier.id);
+        setSupplierName((global as any).selectedSupplier.name);
+        (global as any).selectedSupplier = null;
+      }
+    }, [params?.categoryId, params?.supplierId])
+  );
+
+  // Đồng bộ selectedDate an toàn
+  useEffect(() => {
+    if (hanSuDung) {
+      const dateObj = new Date(hanSuDung);
+      if (!isNaN(dateObj.getTime())) {
+        setSelectedDate(dateObj);
+      } else {
+        setSelectedDate(new Date()); // fallback nếu ngày invalid
+      }
+    }
+  }, [hanSuDung]);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch(`http://172.20.10.5/cuahangtaphoa/HangHoa/Edit?id=${productId}`);
+      const json = await res.json();
+
+      if (json.success) {
+        const d = json.data;
+        setData(d);
+
+        setTenHang(d.tenHang || '');
+        setMaHang(d.maHang || '');
+        setGiaNhap(String(d.giaNhap ?? ''));
+        setGiaBan(String(d.giaBan ?? ''));
+        setSoLuongTon(String(d.soLuongTon ?? ''));
+
+        let hsd = '';
+        if (d.hanSuDung) {
+          const parsed = new Date(d.hanSuDung);
+          if (!isNaN(parsed.getTime())) {
+            hsd = parsed.toISOString().split('T')[0];
+          }
+        }
+        setHanSuDung(hsd);
+      } else {
+        Alert.alert('Lỗi', json.message || 'Không tìm thấy sản phẩm');
+      }
+    } catch (e) {
+      console.error(e);
+      Alert.alert('Lỗi', 'Không load được dữ liệu');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleConfirmDate = (date: Date) => {
+    const dateStr = date.toISOString().split('T')[0];
+    setHanSuDung(dateStr);
+    setSelectedDate(date);
+    setShowDatePicker(false);
+  };
+
+  const handleImagePicker = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Lỗi', 'Bạn chưa cấp quyền ảnh');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
+      allowsEditing: true,
+    });
+
+    if (!result.canceled && result.assets?.[0]) {
+      setImageUri(result.assets[0].uri);
+    }
+  };
+
+  const handleUpdate = async () => {
+    try {
+      setSaving(true);
+      const formData = new FormData();
+
+      formData.append('sp.MaSanPham', String(productId));
+      formData.append('sp.TenSanPham', tenHang || '');
+      formData.append('sp.MaVach', maHang || '');
+      formData.append('sp.SoLuong', soLuongTon || '0');
+      formData.append('sp.MaDanhMuc', maDanhMuc || '');
+      formData.append('sp.MaNhaCungCap', maNhaCungCap || '');
+
+      formData.append('GiaNhap', giaNhap || '0');
+      formData.append('GiaBan', giaBan || '0');
+
+      if (hanSuDung) {
+        formData.append('sp.HanSuDung', new Date(hanSuDung).toISOString());
+      }
+
+      if (imageUri) {
+        let uri = imageUri;
+        if (Platform.OS === 'android' && !uri.startsWith('file://')) {
+          uri = `file://${uri}`;
+        }
+        formData.append('fileAnh', {
+          uri,
+          name: `image_${Date.now()}.jpg`,
+          type: 'image/jpeg',
+        } as any);
+      }
+
+      const res = await fetch('http://172.20.10.5/cuahangtaphoa/HangHoa/EditPost', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const json = await res.json();
+
+      if (json.success) {
+        Alert.alert('Thành công', 'Cập nhật thành công', [
+          { text: 'OK', onPress: () => router.back() },
+        ]);
+        setEditMode(false);
+        setImageUri('');
+        fetchData();
+      } else {
+        Alert.alert('Lỗi', json.message || 'Cập nhật thất bại');
+      }
+    } catch (err) {
+      console.error(err);
+      Alert.alert('Lỗi', 'Không kết nối server');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    Alert.alert('Xoá', 'Bạn có chắc muốn xoá?', [
+      { text: 'Huỷ' },
+      {
+        text: 'Xoá',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            setSaving(true);
+            const formData = new FormData();
+            formData.append('id', String(productId));
+
+            const res = await fetch('http://172.20.10.5/cuahangtaphoa/HangHoa/Delete', {
+              method: 'POST',
+              body: formData,
+            });
+
+            const json = await res.json();
+
+            if (json.success) {
+              Alert.alert('OK', 'Đã xoá');
+              router.back();
+            } else {
+              Alert.alert('Lỗi', json.message);
+            }
+          } catch (err) {
+            console.error(err);
+            Alert.alert('Lỗi', 'Không kết nối server');
+          } finally {
+            setSaving(false);
+          }
+        },
+      },
+    ]);
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator />
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={styles.container}>
-      {/* HEADER SECTION */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>THÔNG TIN CƠ BẢN</Text>
+      <TouchableOpacity
+        onPress={editMode ? handleImagePicker : undefined}
+        disabled={!editMode}
+      >
+        <Image 
+          source={{ uri: imageUri || data?.hinhAnh }} 
+          style={styles.image} 
+        />
+        {editMode && <Text style={styles.editImageText}>Chọn ảnh</Text>}
+      </TouchableOpacity>
 
-        <Image source={{ uri: item.image }} style={styles.image} />
+      {!editMode ? (
+        <Text style={styles.name}>{data?.tenHang}</Text>
+      ) : (
+        <TextInput 
+          value={tenHang} 
+          onChangeText={setTenHang} 
+          style={styles.input}
+          editable={editMode}
+        />
+      )}
 
-        <Text style={styles.name}>{item.name}</Text>
+      <View style={styles.card}>
+        <Text>Mã hàng</Text>
+        <TextInput 
+          value={maHang} 
+          onChangeText={setMaHang} 
+          style={styles.input}
+          editable={editMode}
+        />
+
+        <Text>Giá nhập</Text>
+        <TextInput 
+          value={giaNhap} 
+          onChangeText={setGiaNhap} 
+          style={styles.input}
+          editable={editMode}
+        />
+
+        <Text>Giá bán</Text>
+        <TextInput 
+          value={giaBan} 
+          onChangeText={setGiaBan} 
+          style={styles.input}
+          editable={editMode}
+        />
+
+        <Text>Số lượng</Text>
+        <TextInput 
+          value={soLuongTon} 
+          onChangeText={setSoLuongTon} 
+          style={styles.input}
+          editable={editMode}
+        />
+
+        <Text>Hạn sử dụng</Text>
+        <TouchableOpacity
+          style={styles.input}
+          onPress={() => editMode && setShowDatePicker(true)}
+          disabled={!editMode}
+        >
+          <Text style={{ color: editMode ? '#000' : '#999' }}>
+            {hanSuDung
+              ? new Date(hanSuDung).toLocaleDateString('vi-VN')
+              : 'Chọn ngày'}
+          </Text>
+        </TouchableOpacity>
+
+        {/* Date Picker - Đã fix lỗi out of bounds */}
+        <DateTimePickerModal
+          key={selectedDate.getTime()}           
+          isVisible={showDatePicker}
+          mode="date"
+          date={selectedDate}                   
+          onConfirm={handleConfirmDate}
+          onCancel={() => setShowDatePicker(false)}
+          minimumDate={new Date(2020, 0, 1)}
+          maximumDate={new Date(2050, 11, 31)}
+        />
+
+        <Text>Danh mục</Text>
+        <TouchableOpacity
+          style={styles.box}
+          onPress={() =>
+            editMode &&
+            router.push({
+              pathname: '/SelectCategory',
+              params: { target: 'productdetail', id: productId },
+            })
+          }
+          disabled={!editMode}
+        >
+          <Text style={{ color: editMode ? '#000' : '#666' }}>
+            {categoryName ? `Danh mục: ${categoryName}` : `ID: ${maDanhMuc || 'Chọn danh mục'}`}
+          </Text>
+        </TouchableOpacity>
+
+        <Text>Nhà cung cấp</Text>
+        <TouchableOpacity
+          style={styles.box}
+          onPress={() =>
+            editMode &&
+            router.push({
+              pathname: '/SelectSupplier',
+              params: { target: 'productdetail', id: productId },
+            })
+          }
+          disabled={!editMode}
+        >
+          <Text style={{ color: editMode ? '#000' : '#666' }}>
+            {supplierName ? `NCC: ${supplierName}` : `ID: ${maNhaCungCap || 'Chọn nhà cung cấp'}`}
+          </Text>
+        </TouchableOpacity>
       </View>
 
-      {/* INFO GRID */}
-      <View style={styles.card}>
-        <View style={styles.row}>
-          <View style={styles.col}>
-            <Text style={styles.label}>Mã hàng</Text>
-            <Text style={styles.value}>{item.code}</Text>
-          </View>
+      <View style={styles.row}>
+        {!editMode ? (
+          <TouchableOpacity style={styles.btn} onPress={() => setEditMode(true)} disabled={saving}>
+            <Text style={styles.btnText}>Sửa</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity style={styles.btn} onPress={handleUpdate} disabled={saving}>
+            <Text style={styles.btnText}>{saving ? 'Đang lưu...' : 'Lưu'}</Text>
+          </TouchableOpacity>
+        )}
 
-          <View style={styles.col}>
-            <Text style={styles.label}>Mã vạch</Text>
-            <Text style={styles.value}>{item.barcode}</Text>
-          </View>
-        </View>
-
-        <View style={styles.row}>
-          <View style={styles.col}>
-            <Text style={styles.label}>Giá vốn</Text>
-            <Text style={styles.value}>
-              {Number(item.cost || 0).toLocaleString('vi-VN')}
-            </Text>
-          </View>
-
-          <View style={styles.col}>
-            <Text style={styles.label}>Giá bán</Text>
-            <Text style={styles.value}>
-              {Number(item.price || 0).toLocaleString('vi-VN')}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.row}>
-          <View style={styles.col}>
-            <Text style={styles.label}>Nhóm hàng</Text>
-            <Text style={styles.value}>{item.group}</Text>
-          </View>
-
-          <View style={styles.col}>
-            <Text style={styles.label}>Tồn kho</Text>
-            <Text style={styles.value}>{item.stock}</Text>
-          </View>
-        </View>
+        <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete} disabled={saving}>
+          <Text style={styles.btnText}>{saving ? 'Đang xoá...' : 'Xoá'}</Text>
+        </TouchableOpacity>
       </View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f6f8',
-  },
+  container: { flex: 1, backgroundColor: '#f5f6f8', padding: 16 },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 
-  section: {
+  image: { width: 120, height: 120, borderRadius: 10 },
+  editImageText: { 
+    color: '#1976d2', 
+    textAlign: 'center', 
+    marginTop: 5, 
+    fontSize: 12, 
+    fontWeight: '600' 
+  },
+  name: { fontSize: 20, fontWeight: 'bold', marginVertical: 10 },
+
+  card: { backgroundColor: '#fff', padding: 16, borderRadius: 10 },
+
+  input: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    padding: 10,
+    marginVertical: 5,
+    borderRadius: 6,
     backgroundColor: '#fff',
-    padding: 16,
-    marginBottom: 10,
+    color: '#000',
   },
 
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#6b7280',
-    marginBottom: 12,
-  },
+  row: { flexDirection: 'row', marginTop: 20, gap: 10 },
 
-  image: {
-    width: 90,
-    height: 90,
-    borderRadius: 10,
-    marginBottom: 10,
-  },
-
-  name: {
-    fontSize: 18,
-    fontWeight: '700',
-  },
-
-  card: {
-    backgroundColor: '#fff',
-    padding: 16,
-  },
-
-  row: {
-    flexDirection: 'row',
-    marginBottom: 16,
-  },
-
-  col: {
+  btn: {
     flex: 1,
+    backgroundColor: '#1976d2',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
   },
 
-  label: {
-    fontSize: 12,
-    color: '#9ca3af',
-    marginBottom: 4,
+  deleteBtn: {
+    flex: 1,
+    backgroundColor: 'red',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
   },
 
-  value: {
-    fontSize: 15,
-    fontWeight: '600',
+  box: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 12,
+    marginVertical: 5,
   },
+  btnText: { color: '#fff', fontWeight: '600' },
 });

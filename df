@@ -1,0 +1,545 @@
+warning: in the working copy of 'app.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/(tabs)/_layout.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/_layout.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'expo-env.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'package-lock.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'package.json', LF will be replaced by CRLF the next time Git touches it
+[1mdiff --git a/app.json b/app.json[m
+[1mindex a83c2d5..1ea65ec 100644[m
+[1m--- a/app.json[m
+[1m+++ b/app.json[m
+[36m@@ -38,7 +38,8 @@[m
+             "backgroundColor": "#000000"[m
+           }[m
+         }[m
+[31m-      ][m
+[32m+[m[32m      ],[m
+[32m+[m[32m      "@react-native-community/datetimepicker"[m
+     ],[m
+     "experiments": {[m
+       "typedRoutes": true,[m
+[1mdiff --git a/app/(tabs)/banhang.tsx b/app/(tabs)/banhang.tsx[m
+[1mindex 92253a1..96ebaae 100644[m
+[1m--- a/app/(tabs)/banhang.tsx[m
+[1m+++ b/app/(tabs)/banhang.tsx[m
+[36m@@ -5,6 +5,7 @@[m [mimport {[m
+   Alert,[m
+   Dimensions,[m
+   FlatList,[m
+[32m+[m[32m  Image,[m
+   KeyboardAvoidingView,[m
+   Modal,[m
+   Platform,[m
+[36m@@ -19,7 +20,7 @@[m [mimport {[m
+ import { SafeAreaView } from 'react-native-safe-area-context';[m
+ [m
+ [m
+[31m-const BASE_URL = 'http://172.20.10.2/cuahangtaphoa';[m
+[32m+[m[32mconst BASE_URL = 'http://172.20.10.5/cuahangtaphoa';[m
+ [m
+ // ─── COLORS ──────────────────────────────────────────────────────────────────[m
+ const C = {[m
+[36m@@ -67,6 +68,53 @@[m [minterface PendingReceipt {[m
+ // ─── FORMAT TIỀN ─────────────────────────────────────────────────────────────[m
+ const fmt = (n: number) => Number(n).toLocaleString('vi-VN') + ' ₫';[m
+ [m
+[32m+[m[32m// ─── PRODUCT IMAGE COMPONENT ─────────────────────────────────────────────────[m
+[32m+[m[32m// Load ảnh thật từ server, fallback về icon 📦 nếu lỗi hoặc không có ảnh[m
+[32m+[m[32mfunction ProductImage({ url }: { url: string | null }) {[m
+[32m+[m[32m  const [error, setError] = useState(false);[m
+[32m+[m[32m  const [loading, setLoading] = useState(true);[m
+[32m+[m
+[32m+[m[32m  if (!url || error) {[m
+[32m+[m[32m    return ([m
+[32m+[m[32m      <View style={imgStyles.wrap}>[m
+[32m+[m[32m        <Text style={{ fontSize: 22 }}>📦</Text>[m
+[32m+[m[32m      </View>[m
+[32m+[m[32m    );[m
+[32m+[m[32m  }[m
+[32m+[m
+[32m+[m[32m  return ([m
+[32m+[m[32m    <View style={imgStyles.wrap}>[m
+[32m+[m[32m      {loading && ([m
+[32m+[m[32m        <ActivityIndicator[m
+[32m+[m[32m          size="small"[m
+[32m+[m[32m          color={C.blue}[m
+[32m+[m[32m          style={{ position: 'absolute' }}[m
+[32m+[m[32m        />[m
+[32m+[m[32m      )}[m
+[32m+[m[32m      <Image[m
+[32m+[m[32m        source={{ uri: url }}[m
+[32m+[m[32m        style={imgStyles.img}[m
+[32m+[m[32m        resizeMode="cover"[m
+[32m+[m[32m        onLoad={() => setLoading(false)}[m
+[32m+[m[32m        onError={() => { setError(true); setLoading(false); }}[m
+[32m+[m[32m      />[m
+[32m+[m[32m    </View>[m
+[32m+[m[32m  );[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32mconst imgStyles = StyleSheet.create({[m
+[32m+[m[32m  wrap: {[m
+[32m+[m[32m    width: 52, height: 52,[m
+[32m+[m[32m    borderRadius: 8,[m
+[32m+[m[32m    borderWidth: 1, borderColor: '#eee',[m
+[32m+[m[32m    backgroundColor: '#f8f9fb',[m
+[32m+[m[32m    alignItems: 'center', justifyContent: 'center',[m
+[32m+[m[32m    overflow: 'hidden',[m
+[32m+[m[32m    flexShrink: 0,[m
+[32m+[m[32m  },[m
+[32m+[m[32m  img: { width: 52, height: 52 },[m
+[32m+[m[32m});[m
+[32m+[m
+ // ─── TOAST COMPONENT ─────────────────────────────────────────────────────────[m
+ function Toast({[m
+   msg, type, visible,[m
+[36m@@ -248,15 +296,18 @@[m [mexport default function BanHangScreen() {[m
+   // ─── RENDER SEARCH ITEM ──────────────────────────────────────────────────────[m
+   const renderSearchItem = ({ item }: { item: SanPham }) => {[m
+     const hetHang = item.SoLuong <= 0;[m
+[32m+[m[32m    // Build URL ảnh: nếu HinhAnh là đường dẫn tương đối thì ghép BASE_URL[m
+[32m+[m[32m    const imgUrl = item.HinhAnh[m
+[32m+[m[32m      ? (item.HinhAnh.startsWith('http') ? item.HinhAnh : `${BASE_URL}/${item.HinhAnh.replace(/^\//, '')}`)[m
+[32m+[m[32m      : null;[m
+[32m+[m
+     return ([m
+       <TouchableOpacity[m
+         style={[styles.searchItem, hetHang && { opacity: 0.5 }]}[m
+         onPress={() => !hetHang && addToCart(item)}[m
+         activeOpacity={hetHang ? 1 : 0.7}[m
+       >[m
+[31m-        <View style={styles.spImgPlaceholder}>[m
+[31m-          <Text style={{ fontSize: 20 }}>📦</Text>[m
+[31m-        </View>[m
+[32m+[m[32m        <ProductImage url={imgUrl} />[m
+         <View style={{ flex: 1 }}>[m
+           <Text style={styles.spTen} numberOfLines={2}>{item.TenSanPham}</Text>[m
+           {!!item.MaVach && <Text style={styles.spMavach}>{item.MaVach}</Text>}[m
+[1mdiff --git a/app/(tabs)/baocao.tsx b/app/(tabs)/baocao.tsx[m
+[1mindex 65e0481..642c5eb 100644[m
+[1m--- a/app/(tabs)/baocao.tsx[m
+[1m+++ b/app/(tabs)/baocao.tsx[m
+[36m@@ -12,7 +12,7 @@[m [mimport {[m
+ import { BarChart, LineChart } from 'react-native-chart-kit';[m
+ import { SafeAreaView } from 'react-native-safe-area-context';[m
+ [m
+[31m-const API_BASE = 'http://172.20.10.2/cuahangtaphoa';[m
+[32m+[m[32mconst API_BASE = 'http://172.20.10.5/cuahangtaphoa';[m
+ const { width: SW } = Dimensions.get('window');[m
+ [m
+ const C = {[m
+[1mdiff --git a/app/(tabs)/danhmuc.tsx b/app/(tabs)/danhmuc.tsx[m
+[1mindex 887caff..9b5ac4e 100644[m
+[1m--- a/app/(tabs)/danhmuc.tsx[m
+[1m+++ b/app/(tabs)/danhmuc.tsx[m
+[36m@@ -1,6 +1,9 @@[m
+ import { router } from "expo-router";[m
+[31m-import React from "react";[m
+[32m+[m[32mimport React, { useEffect, useRef, useState } from "react";[m
+ import {[m
+[32m+[m[32m  Alert,[m
+[32m+[m[32m  Animated,[m
+[32m+[m[32m  Dimensions,[m
+   SafeAreaView,[m
+   ScrollView,[m
+   StatusBar,[m
+[36m@@ -9,230 +12,378 @@[m [mimport {[m
+   TouchableOpacity,[m
+   View,[m
+ } from "react-native";[m
+[31m-import { useRouter } from "expo-router";[m
+[32m+[m[32mimport AsyncStorage from "@react-native-async-storage/async-storage";[m
+ [m
+[31m-const Icon = ({[m
+[31m-  emoji,[m
+[31m-  bg,[m
+[31m-}: {[m
+[31m-  emoji: string;[m
+[31m-  bg: string;[m
+[31m-}) => ([m
+[31m-  <View style={[styles.iconBox, { backgroundColor: bg }]}>[m
+[31m-    <Text style={styles.iconEmoji}>{emoji}</Text>[m
+[31m-  </View>[m
+[31m-);[m
+[31m-[m
+[31m-// ─── MenuItem ─────────────────────────────────────[m
+[31m-const MenuItem = ({[m
+[31m-  emoji,[m
+[31m-  bg,[m
+[31m-  label,[m
+[31m-  onPress,[m
+[32m+[m[32mconst { width: SW } = Dimensions.get("window");[m
+[32m+[m
+[32m+[m[32m// ─── THEME ────────────────────────────────────────────────────────────────────[m
+[32m+[m[32mconst T = {[m
+[32m+[m[32m  bg: "#F0F4FF",[m
+[32m+[m[32m  card: "#FFFFFF",[m
+[32m+[m[32m  blue: "#1655D8",[m
+[32m+[m[32m  blueSoft: "#EEF3FF",[m
+[32m+[m[32m  blueDeep: "#0D3DAD",[m
+[32m+[m[32m  text: "#0A1628",[m
+[32m+[m[32m  sub: "#6B7A99",[m
+[32m+[m[32m  border: "#E8EDF8",[m
+[32m+[m[32m  red: "#E53935",[m
+[32m+[m[32m  redSoft: "#FFF0F0",[m
+[32m+[m[32m  green: "#1B8A5A",[m
+[32m+[m[32m  greenSoft: "#EDFAF4",[m
+[32m+[m[32m  orange: "#E67E22",[m
+[32m+[m[32m  orangeSoft: "#FFF5EA",[m
+[32m+[m[32m  teal: "#0097A7",[m
+[32m+[m[32m  tealSoft: "#E0F7FA",[m
+[32m+[m[32m  purple: "#6B3FA0",[m
+[32m+[m[32m  purpleSoft: "#F3EEFF",[m
+[32m+[m[32m};[m
+[32m+[m
+[32m+[m[32m// ─── DATA ─────────────────────────────────────────────────────────────────────[m
+[32m+[m[32mconst SECTIONS = [[m
+[32m+[m[32m  {[m
+[32m+[m[32m    title: "Giao dịch",[m
+[32m+[m[32m    items: [[m
+[32m+[m[32m      {[m
+[32m+[m[32m        label: "Bán hàng",[m
+[32m+[m[32m        sub: "Tạo đơn nhanh",[m
+[32m+[m[32m        emoji: "🛒",[m
+[32m+[m[32m        accent: T.blue,[m
+[32m+[m[32m        soft: T.blueSoft,[m
+[32m+[m[32m        onPress: () => router.push("/banhang"),[m
+[32m+[m[32m      },[m
+[32m+[m[32m      {[m
+[32m+[m[32m        label: "Hóa đơn",[m
+[32m+[m[32m        sub: "Tra cứu lịch sử",[m
+[32m+[m[32m        emoji: "📋",[m
+[32m+[m[32m        accent: T.teal,[m
+[32m+[m[32m        soft: T.tealSoft,[m
+[32m+[m[32m        onPress: () => router.push("/hoadon"),[m
+[32m+[m[32m      },[m
+[32m+[m[32m    ],[m
+[32m+[m[32m  },[m
+[32m+[m[32m  {[m
+[32m+[m[32m    title: "Kho hàng",[m
+[32m+[m[32m    items: [[m
+[32m+[m[32m      {[m
+[32m+[m[32m        label: "Hàng hoá",[m
+[32m+[m[32m        sub: "Quản lý sản phẩm",[m
+[32m+[m[32m        emoji: "📦",[m
+[32m+[m[32m        accent: T.orange,[m
+[32m+[m[32m        soft: T.orangeSoft,[m
+[32m+[m[32m        onPress: () => router.push("/hanghoa"),[m
+[32m+[m[32m      },[m
+[32m+[m[32m      {[m
+[32m+[m[32m        label: "Nhập hàng",[m
+[32m+[m[32m        sub: "Tạo phiếu nhập",[m
+[32m+[m[32m        emoji: "📥",[m
+[32m+[m[32m        accent: T.green,[m
+[32m+[m[32m        soft: T.greenSoft,[m
+[32m+[m[32m        onPress: () => router.push("/phieunhap"),[m
+[32m+[m[32m      },[m
+[32m+[m[32m    ],[m
+[32m+[m[32m  },[m
+[32m+[m[32m  {[m
+[32m+[m[32m    title: "Quản lý",[m
+[32m+[m[32m    items: [[m
+[32m+[m[32m      {[m
+[32m+[m[32m        label: "Nhân viên",[m
+[32m+[m[32m        sub: "Phân quyền, ca làm",[m
+[32m+[m[32m        emoji: "👤",[m
+[32m+[m[32m        accent: T.purple,[m
+[32m+[m[32m        soft: T.purpleSoft,[m
+[32m+[m[32m        onPress: () => router.push("/nhanvien"),[m
+[32m+[m[32m      },[m
+[32m+[m[32m      {[m
+[32m+[m[32m        label: "Nhà cung cấp",[m
+[32m+[m[32m        sub: "Danh sách đối tác",[m
+[32m+[m[32m        emoji: "🏭",[m
+[32m+[m[32m        accent: T.blue,[m
+[32m+[m[32m        soft: T.blueSoft,[m
+[32m+[m[32m        onPress: () => router.push("/nhacungcap"),[m
+[32m+[m[32m      },[m
+[32m+[m[32m    ],[m
+[32m+[m[32m  },[m
+[32m+[m[32m];[m
+[32m+[m
+[32m+[m[32m// ─── ANIMATED MENU ITEM ──────────────────────────────────────────────────────[m
+[32m+[m[32mfunction AnimatedMenuItem({[m
+[32m+[m[32m  item,[m
+[32m+[m[32m  delay,[m
+ }: {[m
+[31m-  emoji: string;[m
+[31m-  bg: string;[m
+[31m-  label: string;[m
+[31m-  onPress: () => void;[m
+[31m-}) => ([m
+[31m-  <TouchableOpacity style={styles.menuItem} onPress={onPress} activeOpacity={0.7}>[m
+[31m-    <Icon emoji={emoji} bg={bg} />[m
+[31m-    <Text style={styles.menuLabel}>{label}</Text>[m
+[31m-  </TouchableOpacity>[m
+[31m-);[m
+[31m-[m
+[31m-// ─── Section ──────────────────────────────────────[m
+[31m-const Section = ({[m
+[32m+[m[32m  item: (typeof SECTIONS)[0]["items"][0];[m
+[32m+[m[32m  delay: number;[m
+[32m+[m[32m}) {[m
+[32m+[m[32m  const slide = useRef(new Animated.Value(24)).current;[m
+[32m+[m[32m  const fade  = useRef(new Animated.Value(0)).current;[m
+[32m+[m[32m  const scale = useRef(new Animated.Value(1)).current;[m
+[32m+[m
+[32m+[m[32m  useEffect(() => {[m
+[32m+[m[32m    Animated.parallel([[m
+[32m+[m[32m      Animated.timing(fade,  { toValue: 1, duration: 380, delay, useNativeDriver: true }),[m
+[32m+[m[32m      Animated.timing(slide, { toValue: 0, duration: 380, delay, useNativeDriver: true }),[m
+[32m+[m[32m    ]).start();[m
+[32m+[m[32m  }, []);[m
+[32m+[m
+[32m+[m[32m  const onPressIn  = () => Animated.spring(scale, { toValue: 0.96, useNativeDriver: true, speed: 50, bounciness: 4 }).start();[m
+[32m+[m[32m  const onPressOut = () => Animated.spring(scale, { toValue: 1,    useNativeDriver: true, speed: 50, bounciness: 4 }).start();[m
+[32m+[m
+[32m+[m[32m  return ([m
+[32m+[m[32m    <Animated.View style={{ flex: 1, opacity: fade, transform: [{ translateY: slide }, { scale }] }}>[m
+[32m+[m[32m      <TouchableOpacity[m
+[32m+[m[32m        style={styles.menuCard}[m
+[32m+[m[32m        onPress={item.onPress}[m
+[32m+[m[32m        onPressIn={onPressIn}[m
+[32m+[m[32m        onPressOut={onPressOut}[m
+[32m+[m[32m        activeOpacity={1}[m
+[32m+[m[32m      >[m
+[32m+[m[32m        <View style={[styles.accentStrip, { backgroundColor: item.accent + "22" }]} />[m
+[32m+[m[32m        <View style={[styles.iconCircle, { backgroundColor: item.soft }]}>[m
+[32m+[m[32m          <Text style={styles.iconEmoji}>{item.emoji}</Text>[m
+[32m+[m[32m        </View>[m
+[32m+[m[32m        <View style={styles.menuTextWrap}>[m
+[32m+[m[32m          <Text style={styles.menuLabel}>{item.label}</Text>[m
+[32m+[m[32m          <Text style={styles.menuSub}>{item.sub}</Text>[m
+[32m+[m[32m        </View>[m
+[32m+[m[32m        <View style={[styles.arrowDot, { backgroundColor: item.soft }]}>[m
+[32m+[m[32m          <Text style={[styles.arrowIcon, { color: item.accent }]}>›</Text>[m
+[32m+[m[32m        </View>[m
+[32m+[m[32m      </TouchableOpacity>[m
+[32m+[m[32m    </Animated.View>[m
+[32m+[m[32m  );[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m// ─── SECTION ─────────────────────────────────────────────────────────────────[m
+[32m+[m[32mfunction Section({[m
+   title,[m
+   items,[m
+[32m+[m[32m  baseDelay,[m
+ }: {[m
+   title: string;[m
+[31m-  items: { label: string; emoji: string; bg: string; onPress: () => void }[];[m
+[31m-}) => {[m
+[31m-  const rows: typeof items[] = [];[m
+[31m-  for (let i = 0; i < items.length; i += 2) {[m
+[31m-    rows.push(items.slice(i, i + 2));[m
+[31m-  }[m
+[31m-[m
+[32m+[m[32m  items: (typeof SECTIONS)[0]["items"];[m
+[32m+[m[32m  baseDelay: number;[m
+[32m+[m[32m}) {[m
+   return ([m
+     <View style={styles.section}>[m
+[31m-      <Text style={styles.sectionTitle}>{title}</Text>[m
+[31m-      {rows.map((row, rIdx) => ([m
+[31m-        <View key={rIdx} style={styles.row}>[m
+[31m-          {row.map((item, iIdx) => ([m
+[31m-            <MenuItem key={iIdx} {...item} />[m
+[31m-          ))}[m
+[31m-          {row.length === 1 && <View style={styles.menuItem} />}[m
+[31m-        </View>[m
+[31m-      ))}[m
+[32m+[m[32m      <View style={styles.sectionTitleRow}>[m
+[32m+[m[32m        <View style={styles.sectionTitleDot} />[m
+[32m+[m[32m        <Text style={styles.sectionTitle}>{title}</Text>[m
+[32m+[m[32m      </View>[m
+[32m+[m[32m      <View style={styles.grid}>[m
+[32m+[m[32m        {items.map((item, i) => ([m
+[32m+[m[32m          <AnimatedMenuItem key={i} item={item} delay={baseDelay + i * 60} />[m
+[32m+[m[32m        ))}[m
+[32m+[m[32m        {items.length % 2 !== 0 && <View style={{ flex: 1 }} />}[m
+[32m+[m[32m      </View>[m
+     </View>[m
+   );[m
+[31m-};[m
+[32m+[m[32m}[m
+ [m
+[31m-// ─── MAIN SCREEN ──────────────────────────────────[m
+[32m+[m[32m// ─── MAIN SCREEN ─────────────────────────────────────────────────────────────[m
+ export default function NhieuHonScreen() {[m
+[31m-  const router = useRouter();[m
+[31m-[m
+[31m-  // Data đặt TRONG component để dùng router[m
+[31m-  const giaoDichItems = [[m
+[31m-    {[m
+[31m-      label: "Bán hàng",[m
+[31m-      emoji: "🛒",[m
+[31m-      bg: "#E8F4FF",[m
+[31m-      onPress: () => router.push("/banhang"),[m
+[31m-    },[m
+[31m-    {[m
+[31m-      label: "Hóa đơn",[m
+[31m-      emoji: "📋",[m
+[31m-      bg: "#E8F4FF",[m
+[31m-      onPress: () => router.push("/hoadon"),[m
+[31m-    },[m
+[31m-  ];[m
+[31m-[m
+[31m-  const hangHoaItems = [[m
+[31m-    {[m
+[31m-      label: "Hàng hoá",[m
+[31m-      emoji: "📦",[m
+[31m-      bg: "#E8F4FF",[m
+[31m-      onPress: () => router.push("/hanghoa"),[m
+[31m-    },[m
+[31m-    {[m
+[31m-      label: "Nhập hàng",[m
+[31m-      emoji: "📥",[m
+[31m-      bg: "#E8F4FF",[m
+[31m-      onPress: () => router.push("/nhaphang"),[m
+[31m-    },[m
+[31m-  ];[m
+[31m-[m
+[31m-  const quanlyItems = [[m
+[31m-    {[m
+[31m-      label: "Nhân viên",[m
+[31m-      emoji: "👤",[m
+[31m-      bg: "#E8F4FF",[m
+[31m-      onPress: () => router.push("/nhanvien"),[m
+[31m-    },[m
+[31m-    {[m
+[31m-      label: "Nhà cung cấp",[m
+[31m-      emoji: "🏭",[m
+[31m-      bg: "#E8F4FF",[m
+[31m-      onPress: () => router.push("/nhacungcap"),[m
+[31m-    },[m
+[31m-  ];[m
+[32m+[m[32m  const headerFade  = useRef(new Animated.Value(0)).current;[m
+[32m+[m[32m  const headerSlide = useRef(new Animated.Value(-12)).current;[m
+[32m+[m
+[32m+[m[32m  const [hoTen, setHoTen]             = useState("Cửa hàng");[m
+[32m+[m[32m  const [tenDangNhap, setTenDangNhap] = useState("");[m
+[32m+[m
+[32m+[m[32m  useEffect(() => {[m
+[32m+[m[32m    Animated.parallel([[m
+[32m+[m[32m      Animated.timing(headerFade,  { toValue: 1, duration: 450, useNativeDriver: true }),[m
+[32m+[m[32m      Animated.timing(headerSlide, { toValue: 0, duration: 450, useNativeDriver: true }),[m
+[32m+[m[32m    ]).start();[m
+[32m+[m
+[32m+[m[32m    // Đọc thông tin user từ AsyncStorage[m
+[32m+[m[32m    AsyncStorage.getItem("user").then((raw) => {[m
+[32m+[m[32m      if (raw) {[m
+[32m+[m[32m        try {[m
+[32m+[m[32m          const user = JSON.parse(raw);[m
+[32m+[m[32m          if (user.hoTen)       setHoTen(user.hoTen);[m
+[32m+[m[32m          if (user.tenDangNhap) setTenDangNhap(user.tenDangNhap);[m
+[32m+[m[32m        } catch {}[m
+[32m+[m[32m      }[m
+[32m+[m[32m    });[m
+[32m+[m[32m  }, []);[m
+[32m+[m
+[32m+[m[32m  // ─── LOGOUT ───────────────────────────────────────────────────────────────[m
+[32m+[m[32m  const handleLogout = () => {[m
+[32m+[m[32m    Alert.alert([m
+[32m+[m[32m      "Đăng xuất",[m
+[32m+[m[32m      "Bạn có chắc muốn đăng xuất không?",[m
+[32m+[m[32m      [[m
+[32m+[m[32m        { text: "Huỷ", style: "cancel" },[m
+[32m+[m[32m        {[m
+[32m+[m[32m          text: "Đăng xuất",[m
+[32m+[m[32m          style: "destructive",[m
+[32m+[m[32m          onPress: async () => {[m
+[32m+[m[32m            try {[m
+[32m+[m[32m              await AsyncStorage.clear();[m
+[32m+[m[32m              router.replace("/login");[m
+[32m+[m[32m            } catch {[m
+[32m+[m[32m              Alert.alert("Lỗi", "Không thể đăng xuất, thử lại sau.");[m
+[32m+[m[32m            }[m
+[32m+[m[32m          },[m
+[32m+[m[32m        },[m
+[32m+[m[32m      ][m
+[32m+[m[32m    );[m
+[32m+[m[32m  };[m
+ [m
+   return ([m
+     <SafeAreaView style={styles.safe}>[m
+[31m-      <StatusBar barStyle="dark-content" backgroundColor="#F2F2F7" />[m
+[32m+[m[32m      <StatusBar barStyle="dark-content" backgroundColor={T.bg} />[m
+ [m
+[31m-      {/* Header */}[m
+[31m-      <View style={styles.header}>[m
+[32m+[m[32m      {/* ── HEADER ── */}[m
+[32m+[m[32m      <Animated.View[m
+[32m+[m[32m        style={[styles.header, { opacity: headerFade, transform: [{ translateY: headerSlide }] }]}[m
+[32m+[m[32m      >[m
+         <View style={styles.headerLeft}>[m
+[31m-          <View style={styles.avatar}>[m
+[31m-            <Text style={styles.avatarText}>👤</Text>[m
+[32m+[m[32m          <View style={styles.avatarWrap}>[m
+[32m+[m[32m            <View style={styles.avatarRing} />[m
+[32m+[m[32m            <View style={styles.avatar}>[m
+[32m+[m[32m              <Text style={styles.avatarEmoji}>🏪</Text>[m
+[32m+[m[32m            </View>[m
+[32m+[m[32m            <View style={styles.onlineDot} />[m
+[32m+[m[32m          </View>[m
+[32m+[m
+[32m+[m[32m          <View>[m
+[32m+[m[32m            {/* Tên lấy từ tài khoản đăng nhập */}[m
+[32m+[m[32m            <Text style={styles.storeName}>{hoTen}</Text>[m
+[32m+[m[32m            {tenDangNhap ? ([m
+[32m+[m[32m              <Text style={styles.usernameText}>@{tenDangNhap}</Text>[m
+[32m+[m[32m            ) : null}[m
+[32m+[m[32m            <View style={styles.statusRow}>[m
+[32m+[m[32m              <View style={styles.statusDot} />[m
+[32m+[m[32m              <Text style={styles.statusText}>Đang hoạt động</Text>[m
+[32m+[m[32m            </View>[m
+           </View>[m
+[31m-          <Text style={styles.storeName}>Cửa hàng</Text>[m
+         </View>[m
+ [m
+[31m-        <TouchableOpacity activeOpacity={0.7}>[m
+[31m-          <Text style={{ fontSize: 18 }}>✏️</Text>[m
+[32m+[m[32m        <TouchableOpacity style={styles.editBtn} activeOpacity={0.75}>[m
+[32m+[m[32m          <Text style={styles.editIcon}>✏️</Text>[m
+         </TouchableOpacity>[m
+[31m-      </View>[m
+[32m+[m[32m      </Animated.View>[m
+[32m+[m
+[32m+[m[32m      {/* ── SCROLLABLE CONTENT ── */}[m
+[32m+[m[32m      <ScrollView[m
+[32m+[m[32m        style={styles.scroll}[m
+[32m+[m[32m        contentContainerStyle={styles.scrollContent}[m
+[32m+[m[32m        showsVerticalScrollIndicator={false}[m
+[32m+[m[32m      >[m
+[32m+[m[32m        {SECTIONS.map((sec, sIdx) => ([m
+[32m+[m[32m          <Section key={sIdx} title={sec.title} items={sec.items} baseDelay={80 + sIdx * 120} />[m
+[32m+[m[32m        ))}[m
+ [m
+[31m-      {/* Content */}[m
+[31m-      <ScrollView showsVerticalScrollIndicator={false}>[m
+[31m-        <Section title="Giao dịch" items={giaoDichItems} />[m
+[31m-        <Section title="Hàng hoá" items={hangHoaItems} />[m
+[31m-        <Section title="Quản lý" items={quanlyItems} />[m
+[31m-[m
+[31m-        <TouchableOpacity[m
+[31m-          style={styles.logoutBtn}[m
+[31m-          onPress={() => alert("Đăng xuất")}[m
+[31m-        >[m
+[31m-          <Text style={styles.logoutEmoji}>🚪</Text>[m
+[32m+[m[32m        {/* ── LOGOUT ── */}[m
+[32m+[m[32m        <TouchableOpacity style={styles.logoutBtn} activeOpacity={0.8} onPress={handleLogout}>[m
+[32m+[m[32m          <View style={[styles.iconCircle, { backgroundColor: T.redSoft }]}>[m
+[32m+[m[32m            <Text style={styles.iconEmoji}>🚪</Text>[m
+[32m+[m[32m          </View>[m
+           <Text style={styles.logoutText}>Đăng xuất</Text>[m
+[32m+[m[32m          <View style={styles.logoutArrow}>[m
+[32m+[m[32m            <Text style={{ color: T.red, fontSize: 20, fontWeight: "300" }}>›</Text>[m
+[32m+[m[32m          </View>[m
+         </TouchableOpacity>[m
+[32m+[m
+[32m+[m[32m        <View style={{ height: 20 }} />[m
+       </ScrollView>[m
+     </SafeAreaView>[m
+   );[m
+ }[m
+ [m
+[31m-// ─── STYLES ───────────────────────────────────────[m
+[32m+[m[32m// ─── STYLES ───────────────────────────────────────────────────────────
