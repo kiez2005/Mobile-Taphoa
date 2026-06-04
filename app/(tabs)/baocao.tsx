@@ -12,7 +12,7 @@ import {
 import { BarChart, LineChart } from 'react-native-chart-kit';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-const API_BASE = 'http://172.20.10.5/cuahangtaphoa';
+const API_BASE = 'http://taphoacuakien.runasp.net';
 const { width: SW } = Dimensions.get('window');
 
 const C = {

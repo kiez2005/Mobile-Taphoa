@@ -30,7 +30,7 @@ export default function SelectSupplierScreen() {
 
   const fetchData = async () => {
     try {
-      const res = await fetch('http://172.20.10.5/cuahangtaphoa/HangHoa/GetNhaCungCap');
+      const res = await fetch('http://taphoacuakien.runasp.net/HangHoa/GetNhaCungCap');
       const json = await res.json();
       setData(json?.data || []);
     } catch {

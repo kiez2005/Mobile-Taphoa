@@ -7,7 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-const BASE_URL = 'http://172.20.10.5/cuahangtaphoa';
+const BASE_URL = 'http://taphoacuakien.runasp.net';
 
 type Employee = {
   id: string;

@@ -83,6 +83,35 @@ const SECTIONS = [
     ],
   },
   {
+    title: "Kho vận",
+    items: [
+      {
+        label: "Kiểm kho",
+        sub: "Đối soát tồn kho",
+        emoji: "🔍",
+        accent: T.teal,
+        soft: T.tealSoft,
+        onPress: () => router.push("/kiemkho"),
+      },
+      {
+        label: "Trả hàng",
+        sub: "Hoàn trả nhà cung cấp",
+        emoji: "↩️",
+        accent: T.orange,
+        soft: T.orangeSoft,
+        onPress: () => router.push("/trahang"),
+      },
+      {
+        label: "Xuất hủy",
+        sub: "Xử lý hàng hỏng",
+        emoji: "🗑️",
+        accent: T.red,
+        soft: T.redSoft,
+        onPress: () => router.push("/xuathuy"),
+      },
+    ],
+  },
+  {
     title: "Quản lý",
     items: [
       {
@@ -105,12 +134,14 @@ const SECTIONS = [
   },
 ];
 
-// ─── ANIMATED MENU ITEM ──────────────────────────────────────────────────────
+type SectionItem = (typeof SECTIONS)[0]["items"][0];
+
+// ─── ANIMATED MENU ITEM (dạng card vuông – dùng trong grid 2 cột) ─────────────
 function AnimatedMenuItem({
   item,
   delay,
 }: {
-  item: (typeof SECTIONS)[0]["items"][0];
+  item: SectionItem;
   delay: number;
 }) {
   const slide = useRef(new Animated.Value(24)).current;
@@ -124,13 +155,64 @@ function AnimatedMenuItem({
     ]).start();
   }, []);
 
-  const onPressIn  = () => Animated.spring(scale, { toValue: 0.96, useNativeDriver: true, speed: 50, bounciness: 4 }).start();
-  const onPressOut = () => Animated.spring(scale, { toValue: 1,    useNativeDriver: true, speed: 50, bounciness: 4 }).start();
+  const onPressIn  = () =>
+    Animated.spring(scale, { toValue: 0.96, useNativeDriver: true, speed: 50, bounciness: 4 }).start();
+  const onPressOut = () =>
+    Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 50, bounciness: 4 }).start();
 
   return (
     <Animated.View style={{ flex: 1, opacity: fade, transform: [{ translateY: slide }, { scale }] }}>
       <TouchableOpacity
         style={styles.menuCard}
+        onPress={item.onPress}
+        onPressIn={onPressIn}
+        onPressOut={onPressOut}
+        activeOpacity={1}
+      >
+        <View style={[styles.accentStrip, { backgroundColor: item.accent + "22" }]} />
+        <View style={[styles.iconCircle, { backgroundColor: item.soft }]}>
+          <Text style={styles.iconEmoji}>{item.emoji}</Text>
+        </View>
+        <View style={styles.menuTextWrap}>
+          <Text style={styles.menuLabel}>{item.label}</Text>
+          <Text style={styles.menuSub}>{item.sub}</Text>
+        </View>
+        <View style={[styles.arrowDot, { backgroundColor: item.soft }]}>
+          <Text style={[styles.arrowIcon, { color: item.accent }]}>›</Text>
+        </View>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+}
+
+// ─── MENU ITEM ROW (dạng nằm ngang – dùng cho item lẻ full width) ────────────
+function MenuItemRow({
+  item,
+  delay,
+}: {
+  item: SectionItem;
+  delay: number;
+}) {
+  const slide = useRef(new Animated.Value(24)).current;
+  const fade  = useRef(new Animated.Value(0)).current;
+  const scale = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fade,  { toValue: 1, duration: 380, delay, useNativeDriver: true }),
+      Animated.timing(slide, { toValue: 0, duration: 380, delay, useNativeDriver: true }),
+    ]).start();
+  }, []);
+
+  const onPressIn  = () =>
+    Animated.spring(scale, { toValue: 0.97, useNativeDriver: true, speed: 50, bounciness: 4 }).start();
+  const onPressOut = () =>
+    Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 50, bounciness: 4 }).start();
+
+  return (
+    <Animated.View style={{ opacity: fade, transform: [{ translateY: slide }, { scale }] }}>
+      <TouchableOpacity
+        style={[styles.menuCard, styles.menuCardRow]}
         onPress={item.onPress}
         onPressIn={onPressIn}
         onPressOut={onPressOut}
@@ -159,20 +241,51 @@ function Section({
   baseDelay,
 }: {
   title: string;
-  items: (typeof SECTIONS)[0]["items"];
+  items: SectionItem[];
   baseDelay: number;
 }) {
+  // Tách thành các hàng 2 items; item lẻ cuối render full width
+  const pairs: SectionItem[][] = [];
+  for (let i = 0; i < items.length; i += 2) {
+    pairs.push(items.slice(i, i + 2));
+  }
+
   return (
     <View style={styles.section}>
       <View style={styles.sectionTitleRow}>
         <View style={styles.sectionTitleDot} />
         <Text style={styles.sectionTitle}>{title}</Text>
       </View>
-      <View style={styles.grid}>
-        {items.map((item, i) => (
-          <AnimatedMenuItem key={i} item={item} delay={baseDelay + i * 60} />
-        ))}
-        {items.length % 2 !== 0 && <View style={{ flex: 1 }} />}
+
+      <View style={{ gap: 12 }}>
+        {pairs.map((pair, pIdx) => {
+          const isSingleItem = pair.length === 1;
+          const delayBase = baseDelay + pIdx * 2 * 60;
+
+          if (isSingleItem) {
+            // Item lẻ → full width, nằm ngang
+            return (
+              <MenuItemRow
+                key={pIdx}
+                item={pair[0]}
+                delay={delayBase}
+              />
+            );
+          }
+
+          // Hai item → grid 2 cột đều nhau
+          return (
+            <View key={pIdx} style={styles.grid}>
+              {pair.map((item, i) => (
+                <AnimatedMenuItem
+                  key={i}
+                  item={item}
+                  delay={delayBase + i * 60}
+                />
+              ))}
+            </View>
+          );
+        })}
       </View>
     </View>
   );
@@ -192,7 +305,6 @@ export default function NhieuHonScreen() {
       Animated.timing(headerSlide, { toValue: 0, duration: 450, useNativeDriver: true }),
     ]).start();
 
-    // Đọc thông tin user từ AsyncStorage
     AsyncStorage.getItem("user").then((raw) => {
       if (raw) {
         try {
@@ -233,7 +345,10 @@ export default function NhieuHonScreen() {
 
       {/* ── HEADER ── */}
       <Animated.View
-        style={[styles.header, { opacity: headerFade, transform: [{ translateY: headerSlide }] }]}
+        style={[
+          styles.header,
+          { opacity: headerFade, transform: [{ translateY: headerSlide }] },
+        ]}
       >
         <View style={styles.headerLeft}>
           <View style={styles.avatarWrap}>
@@ -245,7 +360,6 @@ export default function NhieuHonScreen() {
           </View>
 
           <View>
-            {/* Tên lấy từ tài khoản đăng nhập */}
             <Text style={styles.storeName}>{hoTen}</Text>
             {tenDangNhap ? (
               <Text style={styles.usernameText}>@{tenDangNhap}</Text>
@@ -269,11 +383,20 @@ export default function NhieuHonScreen() {
         showsVerticalScrollIndicator={false}
       >
         {SECTIONS.map((sec, sIdx) => (
-          <Section key={sIdx} title={sec.title} items={sec.items} baseDelay={80 + sIdx * 120} />
+          <Section
+            key={sIdx}
+            title={sec.title}
+            items={sec.items}
+            baseDelay={80 + sIdx * 120}
+          />
         ))}
 
         {/* ── LOGOUT ── */}
-        <TouchableOpacity style={styles.logoutBtn} activeOpacity={0.8} onPress={handleLogout}>
+        <TouchableOpacity
+          style={styles.logoutBtn}
+          activeOpacity={0.8}
+          onPress={handleLogout}
+        >
           <View style={[styles.iconCircle, { backgroundColor: T.redSoft }]}>
             <Text style={styles.iconEmoji}>🚪</Text>
           </View>
@@ -295,32 +418,57 @@ const styles = StyleSheet.create({
   scroll: { flex: 1 },
   scrollContent: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 16 },
 
+  // ── Header
   header: {
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     backgroundColor: T.card,
-    marginHorizontal: 16, marginTop: 10, marginBottom: 4,
-    paddingHorizontal: 16, paddingVertical: 14,
+    marginHorizontal: 16,
+    marginTop: 10,
+    marginBottom: 4,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     borderRadius: 20,
-    shadowColor: T.blue, shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08, shadowRadius: 12, elevation: 4,
-    borderWidth: 1, borderColor: T.border,
+    shadowColor: T.blue,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: T.border,
   },
   headerLeft: { flexDirection: "row", alignItems: "center", gap: 12 },
 
   avatarWrap: { position: "relative", width: 50, height: 50 },
   avatarRing: {
-    position: "absolute", inset: -3, width: 56, height: 56,
-    borderRadius: 28, borderWidth: 2, borderColor: T.blue + "30",
+    position: "absolute",
+    inset: -3,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    borderWidth: 2,
+    borderColor: T.blue + "30",
   },
   avatar: {
-    width: 50, height: 50, borderRadius: 25,
-    backgroundColor: T.blueSoft, alignItems: "center", justifyContent: "center",
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: T.blueSoft,
+    alignItems: "center",
+    justifyContent: "center",
   },
   avatarEmoji: { fontSize: 24 },
   onlineDot: {
-    position: "absolute", bottom: 1, right: 1,
-    width: 12, height: 12, borderRadius: 6,
-    backgroundColor: T.green, borderWidth: 2, borderColor: T.card,
+    position: "absolute",
+    bottom: 1,
+    right: 1,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: T.green,
+    borderWidth: 2,
+    borderColor: T.card,
   },
 
   storeName:    { fontSize: 16, fontWeight: "800", color: T.text, letterSpacing: -0.3 },
@@ -330,60 +478,126 @@ const styles = StyleSheet.create({
   statusText:   { fontSize: 12, color: T.green, fontWeight: "600" },
 
   editBtn: {
-    width: 36, height: 36, borderRadius: 12,
-    backgroundColor: T.bg, alignItems: "center", justifyContent: "center",
-    borderWidth: 1, borderColor: T.border,
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: T.bg,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: T.border,
   },
   editIcon: { fontSize: 16 },
 
+  // ── Section
   section: { marginTop: 18 },
   sectionTitleRow: {
-    flexDirection: "row", alignItems: "center",
-    gap: 7, marginBottom: 10, paddingLeft: 2,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    marginBottom: 10,
+    paddingLeft: 2,
   },
   sectionTitleDot: { width: 4, height: 18, borderRadius: 2, backgroundColor: T.blue },
   sectionTitle: {
-    fontSize: 13, fontWeight: "700", color: T.sub,
-    textTransform: "uppercase", letterSpacing: 1,
+    fontSize: 13,
+    fontWeight: "700",
+    color: T.sub,
+    textTransform: "uppercase",
+    letterSpacing: 1,
   },
 
+  // ── Grid (2 cột)
   grid: { flexDirection: "row", gap: 12 },
 
+  // ── Menu card (dạng cột – dùng trong grid 2 cột)
   menuCard: {
-    backgroundColor: T.card, borderRadius: 18, padding: 14,
-    borderWidth: 1, borderColor: T.border,
-    shadowColor: T.blue, shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.07, shadowRadius: 10, elevation: 3,
-    position: "relative", overflow: "hidden", gap: 10,
+    backgroundColor: T.card,
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: T.border,
+    shadowColor: T.blue,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.07,
+    shadowRadius: 10,
+    elevation: 3,
+    position: "relative",
+    overflow: "hidden",
+    gap: 10,
+    // FIX: đảm bảo 2 card trong grid luôn cao bằng nhau
+    minHeight: 130,
+    justifyContent: "space-between",
   },
+
+  // ── Override cho dạng nằm ngang (item lẻ full width)
+  menuCardRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    minHeight: 0,         // bỏ minHeight
+    justifyContent: "flex-start",
+    gap: 12,
+  },
+
   accentStrip: {
-    position: "absolute", top: -20, right: -20,
-    width: 70, height: 70, borderRadius: 35,
+    position: "absolute",
+    top: -20,
+    right: -20,
+    width: 70,
+    height: 70,
+    borderRadius: 35,
   },
   iconCircle: {
-    width: 44, height: 44, borderRadius: 14,
-    alignItems: "center", justifyContent: "center",
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
   },
   iconEmoji:    { fontSize: 22 },
   menuTextWrap: { flex: 1 },
   menuLabel:    { fontSize: 14, fontWeight: "700", color: T.text, letterSpacing: -0.2 },
   menuSub:      { fontSize: 11.5, color: T.sub, marginTop: 2, fontWeight: "500" },
   arrowDot: {
-    width: 26, height: 26, borderRadius: 13,
-    alignItems: "center", justifyContent: "center", alignSelf: "flex-end",
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: "center",
+    justifyContent: "center",
+    alignSelf: "flex-end",
   },
   arrowIcon: { fontSize: 20, fontWeight: "700", lineHeight: 22 },
 
+  // ── Logout
   logoutBtn: {
-    flexDirection: "row", alignItems: "center",
-    backgroundColor: T.card, marginTop: 18, padding: 14,
-    borderRadius: 18, borderWidth: 1, borderColor: "#FFD6D6",
-    shadowColor: T.red, shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.07, shadowRadius: 10, elevation: 3, gap: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: T.card,
+    marginTop: 18,
+    padding: 14,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#FFD6D6",
+    shadowColor: T.red,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.07,
+    shadowRadius: 10,
+    elevation: 3,
+    gap: 12,
   },
-  logoutText: { flex: 1, fontSize: 15, fontWeight: "700", color: T.red, letterSpacing: -0.2 },
+  logoutText: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: "700",
+    color: T.red,
+    letterSpacing: -0.2,
+  },
   logoutArrow: {
-    width: 30, height: 30, borderRadius: 15,
-    backgroundColor: T.redSoft, alignItems: "center", justifyContent: "center",
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: T.redSoft,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

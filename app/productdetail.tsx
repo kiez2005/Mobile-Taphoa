@@ -84,7 +84,7 @@ export default function ProductDetail() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`http://172.20.10.5/cuahangtaphoa/HangHoa/Edit?id=${productId}`);
+      const res = await fetch(`http://taphoacuakien.runasp.net/HangHoa/GetById?id=${productId}`);
       const json = await res.json();
 
       if (json.success) {
@@ -144,54 +144,100 @@ export default function ProductDetail() {
   const handleUpdate = async () => {
     try {
       setSaving(true);
-      const formData = new FormData();
 
-      formData.append('sp.MaSanPham', String(productId));
-      formData.append('sp.TenSanPham', tenHang || '');
-      formData.append('sp.MaVach', maHang || '');
-      formData.append('sp.SoLuong', soLuongTon || '0');
-      formData.append('sp.MaDanhMuc', maDanhMuc || '');
-      formData.append('sp.MaNhaCungCap', maNhaCungCap || '');
-
-      formData.append('GiaNhap', giaNhap || '0');
-      formData.append('GiaBan', giaBan || '0');
-
+      // BƯỚC 1: Cập nhật thông tin text
+      const updateBody = new URLSearchParams();
+      updateBody.append('sp.MaSanPham', String(productId));
+      updateBody.append('sp.TenSanPham', tenHang || '');
+      updateBody.append('sp.MaVach', maHang || '');
+      updateBody.append('sp.SoLuong', soLuongTon || '0');
+      updateBody.append('sp.MaDanhMuc', maDanhMuc || '');
+      updateBody.append('sp.MaNhaCungCap', maNhaCungCap || '');
+      updateBody.append('GiaNhap', giaNhap || '0');
+      updateBody.append('GiaBan', giaBan || '0');
       if (hanSuDung) {
-        formData.append('sp.HanSuDung', new Date(hanSuDung).toISOString());
+        updateBody.append('sp.HanSuDung', new Date(hanSuDung).toISOString());
       }
 
+      const res = await fetch('http://taphoacuakien.runasp.net/HangHoa/EditPost', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: updateBody.toString(),
+      });
+
+      if (!res.ok) {
+        Alert.alert('Lỗi', `Server lỗi: ${res.status}`);
+        return;
+      }
+
+      const json = JSON.parse(await res.text());
+      if (!json.success) {
+        Alert.alert('Lỗi', json.message || 'Cập nhật thất bại');
+        return;
+      }
+      // BƯỚC 2: Upload ảnh
       if (imageUri) {
+        const formData = new FormData();
+
         let uri = imageUri;
         if (Platform.OS === 'android' && !uri.startsWith('file://')) {
           uri = `file://${uri}`;
         }
+        
         formData.append('fileAnh', {
           uri,
-          name: `image_${Date.now()}.jpg`,
+          name: `product_${productId}.jpg`,
           type: 'image/jpeg',
         } as any);
+
+        // ✅ Truyền id qua query string, KHÔNG đưa vào FormData
+        const imgRes = await fetch(
+          `http://taphoacuakien.runasp.net/HangHoa/UpdateImage?id=${productId}`,
+          {
+            method: 'POST',
+            body: formData,
+            // ❌ Không set Content-Type
+          }
+        );
+
+        const imgText = await imgRes.text();
+        console.log('Upload status:', imgRes.status, imgText.substring(0, 300));
+
+        if (!imgRes.ok) {
+          Alert.alert('Lưu OK', `Thông tin đã lưu nhưng upload ảnh lỗi HTTP ${imgRes.status}`);
+          setEditMode(false);
+          fetchData();
+          return;
+        }
+
+        let imgJson;
+        try {
+          imgJson = JSON.parse(imgText);
+        } catch {
+          Alert.alert('Lưu OK', 'Server trả về response không hợp lệ:\n' + imgText.substring(0, 150));
+          setEditMode(false);
+          fetchData();
+          return;
+        }
+
+        if (!imgJson.success) {
+          Alert.alert('Lưu OK', 'Thông tin đã lưu nhưng ảnh lỗi: ' + imgJson.message);
+          setEditMode(false);
+          fetchData();
+          return;
+        }
       }
 
-      const res = await fetch('http://172.20.10.5/cuahangtaphoa/HangHoa/EditPost', {
-        method: 'POST',
-        body: formData,
-      });
+      Alert.alert('Thành công', 'Cập nhật thành công', [
+        { text: 'OK', onPress: () => router.back() },
+      ]);
+      setEditMode(false);
+      setImageUri('');
+      fetchData();
 
-      const json = await res.json();
-
-      if (json.success) {
-        Alert.alert('Thành công', 'Cập nhật thành công', [
-          { text: 'OK', onPress: () => router.back() },
-        ]);
-        setEditMode(false);
-        setImageUri('');
-        fetchData();
-      } else {
-        Alert.alert('Lỗi', json.message || 'Cập nhật thất bại');
-      }
-    } catch (err) {
-      console.error(err);
-      Alert.alert('Lỗi', 'Không kết nối server');
+    } catch (err: any) {
+      console.error('Update error:', err);
+      Alert.alert('Lỗi kết nối', err?.message || 'Không kết nối server');
     } finally {
       setSaving(false);
     }
@@ -206,25 +252,44 @@ export default function ProductDetail() {
         onPress: async () => {
           try {
             setSaving(true);
-            const formData = new FormData();
-            formData.append('id', String(productId));
 
-            const res = await fetch('http://172.20.10.5/cuahangtaphoa/HangHoa/Delete', {
-              method: 'POST',
-              body: formData,
-            });
+            const res = await fetch(
+              'http://taphoacuakien.runasp.net/HangHoa/Delete',
+              {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `id=${productId}`,
+              }
+            );
 
-            const json = await res.json();
+            // Check HTTP status trước
+            if (!res.ok) {
+              Alert.alert('Lỗi', `Server trả về lỗi: ${res.status}`);
+              return;
+            }
+
+            const responseText = await res.text();
+            console.log('🗑️ Delete response:', responseText.substring(0, 300));
+
+            // Parse JSON an toàn
+            let json;
+            try {
+              json = JSON.parse(responseText);
+            } catch {
+              Alert.alert('Lỗi', 'Server không trả về JSON hợp lệ:\n' + responseText.substring(0, 100));
+              return;
+            }
 
             if (json.success) {
               Alert.alert('OK', 'Đã xoá');
               router.back();
             } else {
-              Alert.alert('Lỗi', json.message);
+              Alert.alert('Lỗi', json.message || 'Xoá thất bại');
             }
-          } catch (err) {
-            console.error(err);
-            Alert.alert('Lỗi', 'Không kết nối server');
+          } catch (err: any) {
+            console.error('Delete error:', err);
+            // Hiện lỗi chi tiết hơn để debug
+            Alert.alert('Lỗi kết nối', err?.message || 'Không kết nối server');
           } finally {
             setSaving(false);
           }

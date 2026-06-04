@@ -95,7 +95,7 @@ export default function LoginScreen() {
 
     setLoading(true);
     try {
-      const response = await fetch("http://172.20.10.5/cuahangtaphoa/Login/Login", {
+      const response = await fetch("http://taphoacuakien.runasp.net/Login/Login", {
         method: "POST",
         headers: { 
           "Content-Type": "application/x-www-form-urlencoded" 
