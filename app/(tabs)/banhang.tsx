@@ -1,8 +1,10 @@
 // app/(tabs)/banhang.tsx
-import React, { useRef, useState } from 'react';
+import { CameraView, useCameraPermissions } from 'expo-camera';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Animated,
   Dimensions,
   FlatList,
   Image,
@@ -30,10 +32,10 @@ const VIETQR_CONFIG = {
   template:    'compact',
 };
 
-const POLL_INTERVAL = 3000;  // polling mỗi 3 giây
-const QR_TIMEOUT    = 300;   // hết hạn sau 300 giây
+const POLL_INTERVAL = 3000;
+const QR_TIMEOUT    = 300;
 
-// ─── COLORS ──────────────────────────────────────────────────────────────────
+// ─── COLORS ───────────────────────────────────────────────────────────────────
 const C = {
   blue:      '#1565c0',
   blueDark:  '#0d47a1',
@@ -54,6 +56,7 @@ const C = {
 };
 
 const { width: SW, height: SH } = Dimensions.get('window');
+const FRAME_SIZE = SW * 0.72;
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 interface SanPham {
@@ -79,7 +82,7 @@ interface PendingReceipt {
   phuongThuc: string;
 }
 
-// ─── FORMAT TIỀN ─────────────────────────────────────────────────────────────
+// ─── FORMAT TIỀN ──────────────────────────────────────────────────────────────
 const fmt = (n: number) => Number(n).toLocaleString('vi-VN') + ' ₫';
 
 // ─── PRODUCT IMAGE ────────────────────────────────────────────────────────────
@@ -130,7 +133,197 @@ function Toast({ msg, type, visible }: { msg: string; type: 'success' | 'error' 
   );
 }
 
-// ─── MAIN SCREEN ─────────────────────────────────────────────────────────────
+// ─── BARCODE SCANNER MODAL ────────────────────────────────────────────────────
+function BarcodeScannerModal({
+  visible,
+  onClose,
+  onScanned,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  onScanned: (barcode: string) => void;
+}) {
+  const [permission, requestPermission] = useCameraPermissions();
+  const [scanned, setScanned] = useState(false);
+  const scanLock = useRef(false);
+  const scanAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (!visible) { setScanned(false); scanLock.current = false; return; }
+    setScanned(false);
+    scanLock.current = false;
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(scanAnim, { toValue: 1, duration: 1800, useNativeDriver: true }),
+        Animated.timing(scanAnim, { toValue: 0, duration: 1800, useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [visible]);
+
+  const handleBarCodeScanned = ({ data }: { data: string }) => {
+    if (scanLock.current) return;
+    scanLock.current = true;
+    setScanned(true);
+    onScanned(data);
+    setTimeout(() => { setScanned(false); scanLock.current = false; }, 2500);
+  };
+
+  const scanLineY = scanAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, FRAME_SIZE - 4],
+  });
+
+  if (!visible) return null;
+
+  // Chưa có permission object
+  if (!permission) {
+    return (
+      <Modal visible={visible} transparent animationType="slide">
+        <View style={scanStyles.overlay}>
+          <ActivityIndicator size="large" color={C.vqr} />
+        </View>
+      </Modal>
+    );
+  }
+
+  // Chưa cấp quyền
+  if (!permission.granted) {
+    return (
+      <Modal visible={visible} transparent animationType="slide">
+        <View style={scanStyles.overlay}>
+          <View style={scanStyles.permBox}>
+            <Text style={{ fontSize: 48, marginBottom: 16 }}>📷</Text>
+            <Text style={scanStyles.permTitle}>Cần quyền Camera</Text>
+            <Text style={scanStyles.permSub}>
+              Ứng dụng cần quyền camera để quét mã vạch sản phẩm.
+            </Text>
+            <TouchableOpacity style={scanStyles.permBtn} onPress={requestPermission}>
+              <Text style={scanStyles.permBtnText}>Cấp quyền Camera</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={{ padding: 12 }} onPress={onClose}>
+              <Text style={{ color: C.muted, fontSize: 14 }}>Đóng</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    );
+  }
+
+  return (
+    <Modal visible={visible} transparent={false} animationType="slide" statusBarTranslucent>
+      <View style={scanStyles.fullScreen}>
+
+        {/* Camera */}
+        <CameraView
+          style={StyleSheet.absoluteFill}
+          facing="back"
+          onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
+          barcodeScannerSettings={{
+            barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e', 'code39', 'code128', 'qr', 'itf14', 'codabar'],
+          }}
+        />
+
+        {/* Lớp tối xung quanh khung */}
+        <View style={scanStyles.maskContainer} pointerEvents="none">
+          <View style={scanStyles.maskTop} />
+          <View style={{ flexDirection: 'row', height: FRAME_SIZE }}>
+            <View style={scanStyles.maskSide} />
+            {/* Khung quét */}
+            <View style={scanStyles.frame}>
+              <View style={[scanStyles.corner, scanStyles.cornerTL]} />
+              <View style={[scanStyles.corner, scanStyles.cornerTR]} />
+              <View style={[scanStyles.corner, scanStyles.cornerBL]} />
+              <View style={[scanStyles.corner, scanStyles.cornerBR]} />
+              <Animated.View style={[scanStyles.scanLine, { transform: [{ translateY: scanLineY }] }]} />
+            </View>
+            <View style={scanStyles.maskSide} />
+          </View>
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.62)' }} />
+        </View>
+
+        {/* Top bar */}
+        <View style={scanStyles.topBar}>
+          <TouchableOpacity onPress={onClose} style={scanStyles.backBtn}>
+            <Text style={{ fontSize: 20, color: '#fff' }}>←</Text>
+          </TouchableOpacity>
+          <Text style={scanStyles.topTitle}>Quét mã vạch</Text>
+          <View style={{ width: 44 }} />
+        </View>
+
+        {/* Bottom hint */}
+        <View style={scanStyles.bottomArea}>
+          {scanned ? (
+            <View style={scanStyles.statusBadge}>
+              <ActivityIndicator size="small" color="#fff" style={{ marginRight: 8 }} />
+              <Text style={scanStyles.statusText}>Đang tìm sản phẩm…</Text>
+            </View>
+          ) : (
+            <>
+              <Text style={scanStyles.hintText}>Đưa mã vạch vào khung để quét</Text>
+              <Text style={scanStyles.hintSub}>EAN-13 · EAN-8 · QR · Code128 · Code39</Text>
+            </>
+          )}
+        </View>
+
+      </View>
+    </Modal>
+  );
+}
+
+const CORNER_SIZE = 22;
+const CORNER_BORDER = 3;
+
+const scanStyles = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center' },
+  permBox: { backgroundColor: '#fff', borderRadius: 18, padding: 32, alignItems: 'center', width: SW * 0.78 },
+  permTitle: { fontSize: 17, fontWeight: '700', marginBottom: 8, textAlign: 'center' },
+  permSub: { fontSize: 13.5, color: '#6b7280', textAlign: 'center', lineHeight: 20, marginBottom: 20 },
+  permBtn: { backgroundColor: C.vqr, borderRadius: 10, paddingHorizontal: 28, paddingVertical: 13, marginBottom: 12 },
+  permBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+
+  fullScreen: { flex: 1, backgroundColor: '#000' },
+  maskContainer: { ...StyleSheet.absoluteFillObject },
+  maskTop: { height: (SH - FRAME_SIZE) / 2.5, backgroundColor: 'rgba(0,0,0,0.62)' },
+  maskSide: { flex: 1, backgroundColor: 'rgba(0,0,0,0.62)' },
+  frame: { width: FRAME_SIZE, height: FRAME_SIZE, overflow: 'hidden' },
+
+  corner: { position: 'absolute', width: CORNER_SIZE, height: CORNER_SIZE },
+  cornerTL: { top: 0, left: 0, borderTopWidth: CORNER_BORDER, borderLeftWidth: CORNER_BORDER, borderColor: '#fff', borderTopLeftRadius: 6 },
+  cornerTR: { top: 0, right: 0, borderTopWidth: CORNER_BORDER, borderRightWidth: CORNER_BORDER, borderColor: '#fff', borderTopRightRadius: 6 },
+  cornerBL: { bottom: 0, left: 0, borderBottomWidth: CORNER_BORDER, borderLeftWidth: CORNER_BORDER, borderColor: '#fff', borderBottomLeftRadius: 6 },
+  cornerBR: { bottom: 0, right: 0, borderBottomWidth: CORNER_BORDER, borderRightWidth: CORNER_BORDER, borderColor: '#fff', borderBottomRightRadius: 6 },
+
+  scanLine: {
+    position: 'absolute', left: 8, right: 8, height: 2,
+    backgroundColor: C.vqr,
+    shadowColor: C.vqr, shadowOpacity: 0.9, shadowRadius: 6, elevation: 4,
+  },
+
+  topBar: {
+    position: 'absolute', top: 0, left: 0, right: 0,
+    height: 90, paddingTop: 44,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+  },
+  backBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.18)' },
+  topTitle: { color: '#fff', fontSize: 16, fontWeight: '700', letterSpacing: 0.3 },
+
+  bottomArea: {
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    paddingBottom: 52, paddingTop: 24,
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.55)',
+  },
+  statusBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.vqr, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 30 },
+  statusText: { color: '#fff', fontWeight: '600', fontSize: 14 },
+  hintText: { color: '#fff', fontSize: 15, fontWeight: '600', marginBottom: 4 },
+  hintSub: { color: 'rgba(255,255,255,0.55)', fontSize: 12 },
+});
+
+// ─── MAIN SCREEN ──────────────────────────────────────────────────────────────
 export default function BanHangScreen() {
   // Search
   const [searchText, setSearchText]       = useState('');
@@ -138,14 +331,17 @@ export default function BanHangScreen() {
   const [showDropdown, setShowDropdown]   = useState(false);
   const [searching, setSearching]         = useState(false);
 
+  // Scanner
+  const [showScanner, setShowScanner] = useState(false);
+
   // Cart
   const [cart, setCart]               = useState<CartItem[]>([]);
   const [discountPct, setDiscountPct] = useState('0');
   const [tienKhach, setTienKhach]     = useState('');
 
   // Payment
-  const [paying, setPaying]                   = useState(false);
-  const [pendingReceipt, setPendingReceipt]   = useState<PendingReceipt | null>(null);
+  const [paying, setPaying]                 = useState(false);
+  const [pendingReceipt, setPendingReceipt] = useState<PendingReceipt | null>(null);
 
   // Modals
   const [showConfirmPrint, setShowConfirmPrint] = useState(false);
@@ -153,13 +349,13 @@ export default function BanHangScreen() {
   const [showPrintPreview, setShowPrintPreview] = useState(false);
 
   // VietQR / SePay
-  const [showVietQR, setShowVietQR]     = useState(false);
-  const [vietQRUrl, setVietQRUrl]       = useState('');
-  const [sepayMaDon, setSepayMaDon]     = useState<string | null>(null);
-  const [sepayStatus, setSepayStatus]   = useState<'waiting' | 'paid'>('waiting');
-  const [sepayTSG, setSepayTSG]         = useState(0);
-  const [sepayPct2, setSepayPct2]       = useState(0);
-  const [sepayCartSnap, setSepayCartSnap] = useState<CartItem[]>([]);
+  const [showVietQR, setShowVietQR]         = useState(false);
+  const [vietQRUrl, setVietQRUrl]           = useState('');
+  const [sepayMaDon, setSepayMaDon]         = useState<string | null>(null);
+  const [sepayStatus, setSepayStatus]       = useState<'waiting' | 'paid'>('waiting');
+  const [sepayTSG, setSepayTSG]             = useState(0);
+  const [sepayPct2, setSepayPct2]           = useState(0);
+  const [sepayCartSnap, setSepayCartSnap]   = useState<CartItem[]>([]);
   const sepayPollRef    = useRef<any>(null);
   const sepayTimeoutRef = useRef<any>(null);
 
@@ -173,14 +369,14 @@ export default function BanHangScreen() {
     toastTimer.current = setTimeout(() => setToast(t => ({ ...t, visible: false })), 2200);
   };
 
-  // ─── TÍNH TIỀN ──────────────────────────────────────────────────────────────
+  // ─── TÍNH TIỀN ───────────────────────────────────────────────────────────────
   const pct          = parseFloat(discountPct) || 0;
   const tongTienHang = cart.reduce((s, x) => s + x.GiaBan * x.SoLuongCart, 0);
   const tienSauGiam  = tongTienHang * (1 - pct / 100);
   const tienKhachNum = parseFloat(tienKhach) || 0;
   const tienThua     = tienKhachNum - tienSauGiam;
 
-  // ─── TÌM SẢN PHẨM ───────────────────────────────────────────────────────────
+  // ─── TÌM SẢN PHẨM ────────────────────────────────────────────────────────────
   const searchTimer = useRef<any>(null);
   const onSearchChange = (text: string) => {
     setSearchText(text);
@@ -188,6 +384,7 @@ export default function BanHangScreen() {
     if (!text.trim()) { setShowDropdown(false); setSearchResults([]); return; }
     searchTimer.current = setTimeout(() => timSanPham(text.trim()), 300);
   };
+
   const timSanPham = async (kw: string) => {
     setSearching(true);
     try {
@@ -202,7 +399,36 @@ export default function BanHangScreen() {
     }
   };
 
-  // ─── GIỎ HÀNG ───────────────────────────────────────────────────────────────
+  // ─── BARCODE HANDLER ─────────────────────────────────────────────────────────
+  const onBarcodeScanned = async (barcode: string) => {
+    showToast('🔍 Đang tìm: ' + barcode, 'info');
+    setSearching(true);
+    try {
+      const res  = await fetch(`${BASE_URL}/BanHang/TimSanPham?keyword=${encodeURIComponent(barcode)}`);
+      const data: SanPham[] = await res.json();
+
+      if (data.length === 1) {
+        // Chỉ 1 kết quả → thêm thẳng vào giỏ, đóng scanner
+        setShowScanner(false);
+        addToCart(data[0]);
+      } else if (data.length > 1) {
+        // Nhiều kết quả → hiện dropdown
+        setShowScanner(false);
+        setSearchText(barcode);
+        setSearchResults(data);
+        setShowDropdown(true);
+      } else {
+        showToast('Không tìm thấy: ' + barcode, 'error');
+        // Giữ nguyên scanner để quét tiếp
+      }
+    } catch {
+      showToast('Lỗi kết nối server!', 'error');
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  // ─── GIỎ HÀNG ────────────────────────────────────────────────────────────────
   const addToCart = (sp: SanPham) => {
     if (sp.SoLuong <= 0) { showToast('Sản phẩm đã hết hàng!', 'error'); return; }
     setSearchText(''); setShowDropdown(false);
@@ -240,7 +466,7 @@ export default function BanHangScreen() {
     ]);
   };
 
-  // ─── THANH TOÁN TIỀN MẶT ────────────────────────────────────────────────────
+  // ─── THANH TOÁN TIỀN MẶT ─────────────────────────────────────────────────────
   const thanhToanTienMat = async () => {
     if (cart.length === 0) { showToast('Chưa có sản phẩm trong đơn!', 'error'); return; }
     if (tienKhachNum < tienSauGiam) { showToast('Số tiền khách đưa chưa đủ!', 'error'); return; }
@@ -265,7 +491,7 @@ export default function BanHangScreen() {
     finally { setPaying(false); }
   };
 
-  // ─── VIETQR / SEPAY ──────────────────────────────────────────────────────────
+  // ─── VIETQR / SEPAY ───────────────────────────────────────────────────────────
   const moVietQR = async () => {
     if (cart.length === 0) { showToast('Chưa có sản phẩm trong đơn!', 'error'); return; }
     setPaying(true);
@@ -281,71 +507,59 @@ export default function BanHangScreen() {
       const data = await res.json();
       if (!data.success) { showToast('Lỗi tạo đơn: ' + data.message, 'error'); return; }
 
-      // Lưu snapshot
       setSepayMaDon(data.maDon);
       setSepayCartSnap([...cart]);
       setSepayTSG(tienSauGiam);
       setSepayPct2(pct);
       setSepayStatus('waiting');
 
-      // Tạo QR URL
       const noiDung = encodeURIComponent('Thanh toan ' + data.maDon);
       const qrUrl   = `https://img.vietqr.io/image/${VIETQR_CONFIG.bankCode}-${VIETQR_CONFIG.accountNo}-${VIETQR_CONFIG.template}.png`
                     + `?amount=${Math.round(tienSauGiam)}&addInfo=${noiDung}&accountName=${encodeURIComponent(VIETQR_CONFIG.accountName)}`;
       setVietQRUrl(qrUrl);
       setShowVietQR(true);
 
-      // Polling
       clearInterval(sepayPollRef.current);
       clearTimeout(sepayTimeoutRef.current);
 
-      const SEPAY_TOKEN = 'JDK1HBZNMPN5HOJPGAVZFCFFHU2TXSQI1VT0RP9KZMZICY6B3OXFG8LYEDUHJPXQ'; // token SePay
+      const SEPAY_TOKEN = 'JDK1HBZNMPN5HOJPGAVZFCFFHU2TXSQI1VT0RP9KZMZICY6B3OXFG8LYEDUHJPXQ';
 
-sepayPollRef.current = setInterval(async () => {
-  try {
-    // Gọi thẳng API SePay từ Expo
-    const r = await fetch(
-      'https://my.sepay.vn/userapi/transactions/list?limit=20',
-      { headers: { 'Authorization': `Bearer ${SEPAY_TOKEN}` } }
-    );
-    const d = await r.json();
+      sepayPollRef.current = setInterval(async () => {
+        try {
+          const r = await fetch(
+            'https://my.sepay.vn/userapi/transactions/list?limit=20',
+            { headers: { 'Authorization': `Bearer ${SEPAY_TOKEN}` } }
+          );
+          const d = await r.json();
+          const found = d.transactions?.some((t: any) =>
+            t.amount_in !== '0.00' &&
+            (t.transaction_content ?? '').toUpperCase().includes(data.maDon.toUpperCase()) &&
+            parseFloat(t.amount_in) >= tienSauGiam
+          );
+          if (found) {
+            clearInterval(sepayPollRef.current);
+            clearTimeout(sepayTimeoutRef.current);
+            await fetch(`${BASE_URL}/BanHang/XacNhanSePay`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ maDon: data.maDon })
+            });
+            setSepayStatus('paid');
+            setTimeout(() => {
+              setShowVietQR(false);
+              setPendingReceipt({
+                maDon: data.maDon, cart: [...cart],
+                phanTram: pct, tong: tongTienHang,
+                tienSauGiam, tienKhach: 0,
+                phuongThuc: 'VietQR/SePay',
+              });
+              setCart([]); setDiscountPct('0'); setTienKhach('');
+              setShowConfirmPrint(true);
+            }, 1500);
+          }
+        } catch (e) { console.log('Polling error:', e); }
+      }, POLL_INTERVAL);
 
-    const found = d.transactions?.some((t: any) =>
-      t.amount_in !== '0.00' &&
-      (t.transaction_content ?? '').toUpperCase().includes(data.maDon.toUpperCase()) &&
-      parseFloat(t.amount_in) >= tienSauGiam
-    );
-
-    if (found) {
-      clearInterval(sepayPollRef.current);
-      clearTimeout(sepayTimeoutRef.current);
-
-      // Báo server cập nhật DB
-      await fetch(`${BASE_URL}/BanHang/XacNhanSePay`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ maDon: data.maDon })
-      });
-
-      setSepayStatus('paid');
-      setTimeout(() => {
-        setShowVietQR(false);
-        setPendingReceipt({
-          maDon: data.maDon, cart: [...cart],
-          phanTram: pct, tong: tongTienHang,
-          tienSauGiam, tienKhach: 0,
-          phuongThuc: 'VietQR/SePay',
-        });
-        setCart([]); setDiscountPct('0'); setTienKhach('');
-        setShowConfirmPrint(true);
-      }, 1500);
-    }
-  } catch (e) {
-    console.log('Polling error:', e);
-  }
-}, POLL_INTERVAL);
-
-      // Timeout 5 phút
       sepayTimeoutRef.current = setTimeout(() => {
         clearInterval(sepayPollRef.current);
         setShowVietQR(false);
@@ -376,7 +590,7 @@ sepayPollRef.current = setInterval(async () => {
     setShowVietQR(false);
   };
 
-  // ─── RENDER SEARCH ITEM ──────────────────────────────────────────────────────
+  // ─── RENDER SEARCH ITEM ───────────────────────────────────────────────────────
   const renderSearchItem = ({ item }: { item: SanPham }) => {
     const hetHang = item.SoLuong <= 0;
     const imgUrl  = item.HinhAnh
@@ -403,7 +617,7 @@ sepayPollRef.current = setInterval(async () => {
     );
   };
 
-  // ─── RENDER CART ITEM ────────────────────────────────────────────────────────
+  // ─── RENDER CART ITEM ─────────────────────────────────────────────────────────
   const renderCartItem = ({ item, index }: { item: CartItem; index: number }) => (
     <View style={styles.cartItem}>
       <Text style={styles.cartIndex}>{index + 1}</Text>
@@ -427,17 +641,17 @@ sepayPollRef.current = setInterval(async () => {
     </View>
   );
 
-  // ─── RECEIPT CONTENT ────────────────────────────────────────────────────────
+  // ─── RECEIPT CONTENT ──────────────────────────────────────────────────────────
   const ReceiptContent = ({ data }: { data: PendingReceipt | null }) => {
-    const items       = data ? data.cart : cart;
-    const maDon       = data?.maDon ?? 'TẠM TÍNH';
-    const _pct        = data?.phanTram ?? pct;
-    const _tong       = data?.tong ?? tongTienHang;
-    const _sau        = data?.tienSauGiam ?? tienSauGiam;
-    const _khach      = data?.tienKhach ?? tienKhachNum;
-    const _thua       = Math.max(0, _khach - _sau);
-    const _phuong     = data?.phuongThuc ?? 'Tiền mặt';
-    const now         = new Date();
+    const items   = data ? data.cart : cart;
+    const maDon   = data?.maDon ?? 'TẠM TÍNH';
+    const _pct    = data?.phanTram ?? pct;
+    const _tong   = data?.tong ?? tongTienHang;
+    const _sau    = data?.tienSauGiam ?? tienSauGiam;
+    const _khach  = data?.tienKhach ?? tienKhachNum;
+    const _thua   = Math.max(0, _khach - _sau);
+    const _phuong = data?.phuongThuc ?? 'Tiền mặt';
+    const now     = new Date();
     return (
       <View style={styles.receiptBox}>
         <Text style={styles.receiptShop}>🏪 CỬA HÀNG TẠP HÓA</Text>
@@ -492,7 +706,7 @@ sepayPollRef.current = setInterval(async () => {
     );
   };
 
-  // ─── RENDER ──────────────────────────────────────────────────────────────────
+  // ─── RENDER ───────────────────────────────────────────────────────────────────
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
 
@@ -532,6 +746,12 @@ sepayPollRef.current = setInterval(async () => {
             </View>
           )}
         </View>
+
+        {/* NÚT CAMERA QUÉT MÃ VẠCH */}
+        <TouchableOpacity style={styles.topIconBtn} onPress={() => setShowScanner(true)}>
+          <Text style={{ fontSize: 20, color: C.white }}>📷</Text>
+        </TouchableOpacity>
+
         <TouchableOpacity style={styles.topIconBtn} onPress={resetCart}>
           <Text style={{ fontSize: 20, color: C.white }}>⟳</Text>
         </TouchableOpacity>
@@ -561,7 +781,7 @@ sepayPollRef.current = setInterval(async () => {
               <View style={styles.emptyState}>
                 <Text style={{ fontSize: 56, marginBottom: 10 }}>🛒</Text>
                 <Text style={styles.emptyText}>Chưa có sản phẩm nào trong đơn</Text>
-                <Text style={styles.emptySubText}>Tìm và thêm sản phẩm vào đơn hàng</Text>
+                <Text style={styles.emptySubText}>Tìm hoặc quét mã vạch để thêm sản phẩm</Text>
               </View>
             ) : (
               <>
@@ -609,9 +829,7 @@ sepayPollRef.current = setInterval(async () => {
               </Text>
             </View>
 
-            {/* 2 NÚT THANH TOÁN */}
             <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
-              {/* TIỀN MẶT */}
               <TouchableOpacity
                 style={[styles.checkoutBtn, { flex: 1 }, (paying || cart.length === 0) && styles.checkoutBtnDisabled]}
                 onPress={thanhToanTienMat}
@@ -623,7 +841,6 @@ sepayPollRef.current = setInterval(async () => {
                   : <Text style={styles.checkoutText}>💵 TIỀN MẶT</Text>
                 }
               </TouchableOpacity>
-              {/* VIETQR */}
               <TouchableOpacity
                 style={[styles.checkoutBtn, { flex: 1, backgroundColor: C.vqr }, (paying || cart.length === 0) && styles.checkoutBtnDisabled]}
                 onPress={moVietQR}
@@ -639,21 +856,27 @@ sepayPollRef.current = setInterval(async () => {
       </KeyboardAvoidingView>
 
       {/* ══════════════════════════════════════════
+          MODAL: BARCODE SCANNER
+      ══════════════════════════════════════════ */}
+      <BarcodeScannerModal
+        visible={showScanner}
+        onClose={() => setShowScanner(false)}
+        onScanned={onBarcodeScanned}
+      />
+
+      {/* ══════════════════════════════════════════
           MODAL: VIETQR + SEPAY
       ══════════════════════════════════════════ */}
       <Modal visible={showVietQR} transparent animationType="slide">
         <View style={styles.overlay}>
           <View style={styles.vqrBox}>
-            {/* Header */}
             <View style={styles.vqrHeader}>
               <Text style={styles.vqrHeaderTitle}>📱 Thanh toán VietQR</Text>
               <TouchableOpacity onPress={huyVietQR} style={styles.vqrCloseBtn}>
                 <Text style={{ color: C.white, fontSize: 18, fontWeight: '700' }}>✕</Text>
               </TouchableOpacity>
             </View>
-
             <View style={{ padding: 16 }}>
-              {/* Thông tin ngân hàng */}
               <View style={styles.vqrBankInfo}>
                 <View style={styles.vqrBankRow}>
                   <Text style={styles.vqrBankLabel}>Ngân hàng</Text>
@@ -676,8 +899,6 @@ sepayPollRef.current = setInterval(async () => {
                   <Text style={[styles.vqrBankValue, { fontSize: 12, maxWidth: 200, textAlign: 'right' }]}>Thanh toan {sepayMaDon}</Text>
                 </View>
               </View>
-
-              {/* QR Code */}
               <View style={{ alignItems: 'center', marginBottom: 14 }}>
                 <View style={styles.vqrImgBox}>
                   {vietQRUrl
@@ -686,26 +907,20 @@ sepayPollRef.current = setInterval(async () => {
                   }
                 </View>
               </View>
-
-              {/* Trạng thái */}
               <View style={{ alignItems: 'center', marginBottom: 12 }}>
-                {sepayStatus === 'waiting'
-                  ? (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      <ActivityIndicator size="small" color="#f59e0b" />
-                      <Text style={{ color: C.muted, fontSize: 13 }}>Đang chờ khách chuyển khoản...</Text>
-                    </View>
-                  ) : (
-                    <Text style={{ color: '#16a34a', fontWeight: '700', fontSize: 14 }}>✅ Đã nhận tiền — Thành công!</Text>
-                  )
-                }
+                {sepayStatus === 'waiting' ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <ActivityIndicator size="small" color="#f59e0b" />
+                    <Text style={{ color: C.muted, fontSize: 13 }}>Đang chờ khách chuyển khoản...</Text>
+                  </View>
+                ) : (
+                  <Text style={{ color: '#16a34a', fontWeight: '700', fontSize: 14 }}>✅ Đã nhận tiền — Thành công!</Text>
+                )}
               </View>
-
               <Text style={{ textAlign: 'center', fontSize: 12, color: C.muted, lineHeight: 18, marginBottom: 14 }}>
                 Mở app ngân hàng bất kỳ → Quét mã QR → Xác nhận{'\n'}
                 <Text style={{ color: C.vqr, fontWeight: '600' }}>Hệ thống tự xác nhận khi nhận được tiền</Text>
               </Text>
-
               <TouchableOpacity style={styles.vqrCancelBtn} onPress={huyVietQR}>
                 <Text style={{ color: C.muted, fontSize: 13 }}>✕  Hủy thanh toán</Text>
               </TouchableOpacity>
@@ -849,7 +1064,6 @@ const styles = StyleSheet.create({
 
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', alignItems: 'center' },
 
-  // VietQR modal
   vqrBox: { backgroundColor: C.white, borderRadius: 18, width: SW * 0.92, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 16, elevation: 10 },
   vqrHeader: { backgroundColor: C.vqr, padding: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   vqrHeaderTitle: { color: C.white, fontSize: 16, fontWeight: '700' },
@@ -861,7 +1075,6 @@ const styles = StyleSheet.create({
   vqrImgBox: { width: 220, height: 220, borderWidth: 3, borderColor: C.vqr, borderRadius: 14, overflow: 'hidden', backgroundColor: C.white, alignItems: 'center', justifyContent: 'center' },
   vqrCancelBtn: { borderWidth: 1, borderColor: C.border, borderRadius: 8, height: 42, alignItems: 'center', justifyContent: 'center' },
 
-  // Confirm print
   confirmBox: { backgroundColor: C.white, borderRadius: 18, width: SW * 0.86, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 16, elevation: 10 },
   confirmIcon: { width: 70, height: 70, backgroundColor: C.blueLight, borderRadius: 35, alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginTop: 28, marginBottom: 14 },
   confirmTitle: { fontSize: 17, fontWeight: '800', textAlign: 'center', color: C.text, paddingHorizontal: 20 },
@@ -872,7 +1085,6 @@ const styles = StyleSheet.create({
   confirmYes: { flex: 1, height: 52, alignItems: 'center', justifyContent: 'center', backgroundColor: C.blue },
   confirmYesText: { fontSize: 14, fontWeight: '700', color: C.white },
 
-  // Success
   successBox: { backgroundColor: C.white, borderRadius: 18, width: SW * 0.8, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 16, elevation: 10, alignItems: 'center' },
   successIcon: { width: 76, height: 76, backgroundColor: '#dcfce7', borderRadius: 38, alignItems: 'center', justifyContent: 'center', marginTop: 28, marginBottom: 14 },
   successTitle: { fontSize: 18, fontWeight: '800', color: C.text, marginBottom: 8 },
@@ -880,7 +1092,6 @@ const styles = StyleSheet.create({
   successBtn: { width: '100%', height: 50, backgroundColor: '#16a34a', alignItems: 'center', justifyContent: 'center' },
   successBtnText: { color: C.white, fontSize: 15, fontWeight: '700' },
 
-  // Print
   printBox: { backgroundColor: C.white, borderRadius: 18, width: SW * 0.92, maxHeight: SH * 0.88, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 16, elevation: 10 },
   printHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: C.border },
   printHeaderTitle: { fontSize: 15, fontWeight: '700', color: C.text },
@@ -891,7 +1102,6 @@ const styles = StyleSheet.create({
   printConfirmBtn: { flex: 1, height: 44, backgroundColor: C.blue, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   printConfirmText: { fontSize: 14, fontWeight: '700', color: C.white },
 
-  // Receipt
   receiptBox: { backgroundColor: '#fafafa', borderWidth: 1, borderColor: '#e5e7eb', borderStyle: 'dashed', borderRadius: 8, padding: 14 },
   receiptShop: { textAlign: 'center', fontSize: 15, fontWeight: '800', marginBottom: 4 },
   receiptAddr: { textAlign: 'center', fontSize: 11.5, color: C.muted, lineHeight: 18 },
