@@ -161,9 +161,9 @@ function AnimatedMenuItem({
     Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 50, bounciness: 4 }).start();
 
   return (
-    <Animated.View style={{ flex: 1, opacity: fade, transform: [{ translateY: slide }, { scale }] }}>
+    <Animated.View style={{ flex: 1,alignSelf: "stretch", opacity: fade, transform: [{ translateY: slide }, { scale }] }}>
       <TouchableOpacity
-        style={styles.menuCard}
+        style={[styles.menuCard, { flex: 1 }]}
         onPress={item.onPress}
         onPressIn={onPressIn}
         onPressOut={onPressOut}
@@ -508,7 +508,7 @@ const styles = StyleSheet.create({
   },
 
   // ── Grid (2 cột)
-  grid: { flexDirection: "row", gap: 12 },
+  grid: { flexDirection: "row", gap: 12, alignItems: "stretch" },
 
   // ── Menu card (dạng cột – dùng trong grid 2 cột)
   menuCard: {
@@ -525,8 +525,8 @@ const styles = StyleSheet.create({
     position: "relative",
     overflow: "hidden",
     gap: 10,
-    // FIX: đảm bảo 2 card trong grid luôn cao bằng nhau
-    minHeight: 130,
+    minHeight: 0,          
+    alignSelf: "stretch",  
     justifyContent: "space-between",
   },
 
