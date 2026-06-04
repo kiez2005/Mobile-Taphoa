@@ -21,7 +21,7 @@ import { router } from 'expo-router';
 // =============================================
 // ⚙️ CẤU HÌNH API
 // =============================================
-const BASE_URL = 'http://172.20.10.5/cuahangtaphoa';
+const BASE_URL = 'http://taphoacuakien.runasp.net';
 
 // =============================================
 // 🔄 Hàm gọi API tạo nhân viên

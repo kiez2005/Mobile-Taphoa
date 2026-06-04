@@ -16,7 +16,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 
-const BASE_URL = 'http://172.20.10.5/cuahangtaphoa';
+const BASE_URL = 'http://taphoacuakien.runasp.net';
 const API_ENDPOINT = `${BASE_URL}/NhanVien/GetAll`;
 
 type Employee = {

@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-const API_URL = 'http://172.20.10.5/cuahangtaphoa/HangHoa/GetHangHoa';
+const API_URL = 'http://taphoacuakien.runasp.net/HangHoa/GetHangHoa';
 
 export default function HangHoaScreen() {
   const [data, setData] = useState<any[]>([]);
@@ -31,16 +31,31 @@ export default function HangHoaScreen() {
       const json = await res.json();
       const list = json.data || [];
 
-      const formatted = list.map((item: any) => ({
-        id: item.id?.toString() || Math.random().toString(),
-        name: item.tenHang || 'Không tên',
-        code: item.maHang || '',
-        price: Number(item.giaBan) || 0,
-        stock: Number(item.soLuongTon) || 0,
-        image: item.hinhAnh
-          ? `http://172.20.10.5/cuahangtaphoa/${item.hinhAnh}`
-          : 'https://via.placeholder.com/50',
-      }));
+
+      const formatted = list.map((item: any) => {
+        // Lấy URL ảnh: ưu tiên AnhUrl (Cloudinary), fallback hinhAnh (path cũ)
+        let image = 'https://via.placeholder.com/50';
+
+        if (item.hinhAnh && item.hinhAnh.startsWith('http')) {
+          // URL Cloudinary đầy đủ → dùng thẳng
+          image = item.hinhAnh;
+        } else if (item.hinhAnh) {
+          // Path local cũ → ghép domain PHP
+            const cleanPath = item.hinhAnh.startsWith('/') 
+              ? item.hinhAnh.slice(1)  // bỏ dấu / đầu
+              : item.hinhAnh;
+            image = `http://taphoacuakien.runasp.net/${cleanPath}`;
+        }
+
+        return {
+          id: item.id?.toString() || Math.random().toString(),
+          name: item.tenHang || 'Không tên',
+          code: item.maHang || '',
+          price: Number(item.giaBan) || 0,
+          stock: Number(item.soLuongTon) || 0,
+          image,
+        };
+      });
 
       setData(formatted);
     } catch (error) {

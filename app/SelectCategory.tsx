@@ -30,7 +30,7 @@ export default function SelectCategoryScreen() {
 
   const fetchData = async () => {
     try {
-      const res = await fetch('http://172.20.10.5/cuahangtaphoa/HangHoa/GetDanhMuc');
+      const res = await fetch('http://taphoacuakien.runasp.net/HangHoa/GetDanhMuc');
       const json = await res.json();
       setData(json?.data || []);
     } catch {
